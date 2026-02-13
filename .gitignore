@@ -1,0 +1,9 @@
+.venv/
+env/
+.env
+config.py
+data/
+*.db
+__pycache__/
+.pytest_cache/
+.DS_Store
