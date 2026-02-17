@@ -3,11 +3,7 @@
 
 def test_login_selectors_exist():
     """Test that login selectors are defined"""
-    from iris_selectors import (
-        LOGIN_EMAIL_INPUT,
-        LOGIN_PASSWORD_INPUT,
-        LOGIN_SUBMIT_BUTTON,
-    )
+    from iris_selectors import LOGIN_EMAIL_INPUT, LOGIN_PASSWORD_INPUT, LOGIN_SUBMIT_BUTTON
 
     assert isinstance(LOGIN_EMAIL_INPUT, str)
     assert isinstance(LOGIN_PASSWORD_INPUT, str)
@@ -51,12 +47,7 @@ def test_apartment_data_selectors_exist():
 
 def test_project_selectors_exist():
     """Test that project selectors are defined"""
-    from iris_selectors import (
-        LIST_VIEW_BUTTON,
-        PROJECT_DETAIL_LINK,
-        PROJECT_ROW,
-        PROJECT_TABLE,
-    )
+    from iris_selectors import LIST_VIEW_BUTTON, PROJECT_DETAIL_LINK, PROJECT_ROW, PROJECT_TABLE
 
     assert isinstance(LIST_VIEW_BUTTON, str)
     assert isinstance(PROJECT_TABLE, str)
@@ -66,11 +57,7 @@ def test_project_selectors_exist():
 
 def test_pagination_selectors_exist():
     """Test that pagination selectors are defined"""
-    from iris_selectors import (
-        LOAD_MORE_BUTTON,
-        LOADING_INDICATOR,
-        NO_MORE_ITEMS_MESSAGE,
-    )
+    from iris_selectors import LOAD_MORE_BUTTON, LOADING_INDICATOR, NO_MORE_ITEMS_MESSAGE
 
     assert isinstance(LOAD_MORE_BUTTON, str)
     assert isinstance(LOADING_INDICATOR, str)
@@ -79,12 +66,7 @@ def test_pagination_selectors_exist():
 
 def test_selectors_are_valid_css():
     """Test that all selectors contain valid CSS syntax"""
-    from iris_selectors import (
-        APARTMENT_TITLE,
-        LOAD_MORE_BUTTON,
-        LOGIN_EMAIL_INPUT,
-        PROJECT_TABLE,
-    )
+    from iris_selectors import APARTMENT_TITLE, LOAD_MORE_BUTTON, LOGIN_EMAIL_INPUT, PROJECT_TABLE
 
     # Basic check: selectors should contain CSS patterns
     assert any(char in LOGIN_EMAIL_INPUT for char in ["[", ".", "#", "input"])

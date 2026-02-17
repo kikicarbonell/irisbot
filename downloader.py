@@ -10,12 +10,7 @@ from typing import Optional
 
 import aiohttp
 
-from config import (
-    DOWNLOAD_TIMEOUT_S,
-    REQUEST_RETRY_BACKOFF_S,
-    REQUEST_RETRY_COUNT,
-    USER_AGENT,
-)
+from config import DOWNLOAD_TIMEOUT_S, REQUEST_RETRY_BACKOFF_S, REQUEST_RETRY_COUNT, USER_AGENT
 
 logger = logging.getLogger(__name__)
 

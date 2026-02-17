@@ -15,7 +15,6 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: [--line-length=100]  # Match CODING_STANDARDS.md soft limit
         stages: [pre-commit]
 
   # isort - Import statement organization
@@ -23,7 +22,6 @@ repos:
     rev: 5.13.2
     hooks:
       - id: isort
-        args: [--profile=black]  # Use black-compatible settings
         stages: [pre-commit]
 
   # ============================================================================
@@ -35,10 +33,6 @@ repos:
     rev: 7.0.0
     hooks:
       - id: flake8
-        args:
-          - --max-line-length=100
-          - --extend-ignore=E203,W503  # Compatible with black
-          - --exclude=.venv,__pycache__,tests
         stages: [pre-commit]
 
   # Pylint - Advanced Python code analysis (as local hook)
@@ -50,11 +44,6 @@ repos:
         language: system
         types: [python]
         exclude: ^tests/
-        args:
-          - --max-line-length=100
-          - --disable=C0111  # Docstring not required (pydocstyle handles it)
-          - --enable=C0302  # Too many lines in module
-          - --errors-only  # Only fail on errors, not warnings
         stages: [pre-commit]
 
   # pydocstyle - Docstring conventions
