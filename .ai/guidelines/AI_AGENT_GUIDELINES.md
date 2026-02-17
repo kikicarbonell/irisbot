@@ -37,7 +37,7 @@
 
 Only keep if they provide **ongoing value** to developers:
 - `README.md` - Main project documentation
-- `TESTING_QUICKSTART.md` - Quick reference  
+- `TESTING_QUICKSTART.md` - Quick reference
 - `*_REPORT.md` - Final technical reports (if valuable for future reference)
 - `*_COMPLETE.md` - Completion summaries (if they document major milestones)
 
@@ -101,7 +101,7 @@ These are already enforced by existing documentation - no duplication:
 
 **Applied to:**
 - All source code
-- All comments and docstrings  
+- All comments and docstrings
 - All documentation and error messages
 - All logging output
 
@@ -162,8 +162,7 @@ If a pattern matches your file but you think it should be committed, ask in code
 
 ---
 
-**Last updated:** February 16, 2026  
+**Last updated:** February 16, 2026
 **Status:** Active
 
 For full standards reference, see [CODING_STANDARDS.md](./CODING_STANDARDS.md) and other documents in `.ai/guidelines/`
-

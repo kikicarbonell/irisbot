@@ -147,7 +147,7 @@ When content updates via AJAX without new network requests:
 async def wait_for_more_projects(page, prev_count):
     MAX_ATTEMPTS = 20
     POLL_INTERVAL_MS = 500
-    
+
     for attempt in range(MAX_ATTEMPTS):
         await page.wait_for_timeout(POLL_INTERVAL_MS)
         current_count = await page.evaluate("""
@@ -191,7 +191,7 @@ async def handle_pagination(page: Page):
     1. Appends 12 new projects to existing list
     2. Updates DOM without page reload
     3. Hides button when no more projects
-    
+
     Strategy:
     - Count projects before click
     - Click button
@@ -199,7 +199,7 @@ async def handle_pagination(page: Page):
     - Repeat until button disappears or no new projects
     """
     iteration = 1
-    
+
     while True:
         # Count before
         prev_hrefs = await page.evaluate("""
@@ -207,21 +207,21 @@ async def handle_pagination(page: Page):
                 document.querySelectorAll('a[href*="/proyecto/"]')
             ).map(a => a.href)
         """)
-        
+
         # Find button
         button = await page.query_selector(LOAD_MORE_BUTTON)
         if not button:
             break
-        
+
         # Click
         await button.scroll_into_view_if_needed()
         await button.click()
-        
+
         # Wait for new content
         success = await wait_for_more_projects(page, prev_hrefs)
         if not success:
             break
-        
+
         iteration += 1
 ```
 
@@ -235,7 +235,7 @@ async def scroll_pagination(page: Page):
         # Scroll to bottom
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         await page.wait_for_timeout(2000)
-        
+
         # Check if new content loaded
         new_height = await page.evaluate("document.body.scrollHeight")
         if new_height == prev_height:
@@ -420,15 +420,15 @@ if response.status == 429:  # Too Many Requests
 def validate_project_data(data: dict) -> bool:
     """Validate project data before DB insertion"""
     required_fields = ['name', 'detail_url']
-    
+
     for field in required_fields:
         if not data.get(field):
             return False
-    
+
     # Validate URL format
     if not data['detail_url'].startswith('/proyecto/'):
         return False
-    
+
     return True
 
 # Usage
@@ -492,28 +492,28 @@ detail_url = "/proyecto/235"  # ✅
 ## 🐛 Common Pitfalls & Solutions
 
 ### Pitfall 1: Wrong Selector
-**Problem:** `.table-row` selector returns 0 elements  
-**Solution:** Inspect actual DOM, use `a[href*='/proyecto/']`  
+**Problem:** `.table-row` selector returns 0 elements
+**Solution:** Inspect actual DOM, use `a[href*='/proyecto/']`
 **Prevention:** Always test selectors on 3+ sample pages
 
 ### Pitfall 2: Race Condition
-**Problem:** Clicking button before it's ready  
-**Solution:** Use `await button.wait_for_element_state('enabled')`  
+**Problem:** Clicking button before it's ready
+**Solution:** Use `await button.wait_for_element_state('enabled')`
 **Prevention:** Use Playwright's auto-wait features
 
 ### Pitfall 3: Stale Element Reference
-**Problem:** Element removed from DOM after pagination  
-**Solution:** Re-query elements after DOM updates  
+**Problem:** Element removed from DOM after pagination
+**Solution:** Re-query elements after DOM updates
 **Prevention:** Don't cache element handles across iterations
 
 ### Pitfall 4: Timeout on Slow Networks
-**Problem:** `wait_for_selector` times out on slow connection  
-**Solution:** Increase timeout or use polling  
+**Problem:** `wait_for_selector` times out on slow connection
+**Solution:** Increase timeout or use polling
 **Prevention:** Test on throttled network (Playwright network throttling)
 
 ### Pitfall 5: Modal Blocking Click
-**Problem:** Clicking button when modal is open  
-**Solution:** Close modal first or check visibility  
+**Problem:** Clicking button when modal is open
+**Solution:** Close modal first or check visibility
 **Prevention:** Always verify `is_visible()` before click
 
 ---

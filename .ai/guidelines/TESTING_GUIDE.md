@@ -1,6 +1,6 @@
 # Testing Guide
 
-**Última actualización:** Febrero 16, 2026  
+**Última actualización:** Febrero 16, 2026
 **Cobertura actual:** 91% (83 tests, 0 fallos)
 
 ## Tabla de Contenidos
@@ -210,28 +210,28 @@ from unittest.mock import AsyncMock, patch
 
 class TestMyFeature:
     """Tests para mi feature"""
-    
+
     def test_simple_case(self):
         """Descripción clara del caso"""
         # Arrange
         data = {"key": "value"}
-        
+
         # Act
         result = my_function(data)
-        
+
         # Assert
         assert result is not None
         assert result['status'] == 'success'
-    
+
     @pytest.mark.asyncio
     async def test_async_case(self):
         """Test para función async"""
         # Arrange
         mock_page = AsyncMock()
-        
+
         # Act
         result = await my_async_function(mock_page)
-        
+
         # Assert
         assert mock_page.evaluate.called
 ```

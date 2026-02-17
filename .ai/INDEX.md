@@ -2,8 +2,8 @@
 
 **Central hub para toda la documentación del proyecto Irisbot.**
 
-**Última actualización:** Febrero 16, 2026  
-**Cobertura de tests:** 91% ✅  
+**Última actualización:** Febrero 16, 2026
+**Cobertura de tests:** 91% ✅
 **Status:** Fase 1 Completa ✅ | Fase 2 Planeada 🚧
 
 ---

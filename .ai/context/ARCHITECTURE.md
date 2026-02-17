@@ -120,7 +120,7 @@ async def extract_project_card_data(card):
 async def authenticate(page: Page, email=None, password=None) -> bool:
     """
     Authenticates user in Iris portal
-    
+
     Process:
     1. Wait for email input
     2. Fill email and password
@@ -132,7 +132,7 @@ async def authenticate(page: Page, email=None, password=None) -> bool:
 
 **Selectores utilizados:**
 - `LOGIN_EMAIL_INPUT` - Input de email
-- `LOGIN_PASSWORD_INPUT` - Input de contraseña  
+- `LOGIN_PASSWORD_INPUT` - Input de contraseña
 - `LOGIN_SUBMIT_BUTTON` - Botón de envío
 
 **Manejo de errores:**

@@ -168,7 +168,7 @@ For each project in the catalog, extract:
 
 **Challenge 2: Modal Interaction**
 - **Issue:** "Más información" modal requires click and wait
-- **Solution:** 
+- **Solution:**
   ```python
   await page.click('button:has-text("Más información")')
   await page.wait_for_selector('div.modal', state='visible')
@@ -284,7 +284,7 @@ from db_manager import get_all_projects, get_all_units
 def export_to_excel(output_path: str):
     projects = get_all_projects()
     units = get_all_units()
-    
+
     with pd.ExcelWriter(output_path) as writer:
         pd.DataFrame(projects).to_excel(writer, sheet_name='Projects', index=False)
         pd.DataFrame(units).to_excel(writer, sheet_name='Units', index=False)
@@ -422,8 +422,8 @@ ALTER TABLE projects ADD COLUMN last_scraped_at TIMESTAMP;
 ALTER TABLE projects ADD COLUMN last_modified_at TIMESTAMP;
 
 -- Update on each scrape
-UPDATE projects 
-SET last_scraped_at = CURRENT_TIMESTAMP 
+UPDATE projects
+SET last_scraped_at = CURRENT_TIMESTAMP
 WHERE id = ?;
 ```
 
@@ -437,22 +437,22 @@ WHERE id = ?;
 async def incremental_scrape():
     current_projects = await scrape_catalog()
     existing_projects = get_all_projects_from_db()
-    
+
     # Find new projects
     new_urls = set(p['detail_url'] for p in current_projects) - \
                set(p['detail_url'] for p in existing_projects)
-    
+
     # Find changed projects (e.g., price changed)
     changed = []
     for curr in current_projects:
         existing = get_project_by_url(curr['detail_url'])
         if existing and curr['price_from'] != existing['price_from']:
             changed.append(curr)
-    
+
     # Scrape only new + changed
     to_scrape = list(new_urls) + changed
     logger.info(f"Incremental scrape: {len(to_scrape)} projects")
-    
+
     for project in to_scrape:
         await scrape_project_details(project)
 ```
@@ -554,5 +554,5 @@ async def incremental_scrape():
 
 ---
 
-**Última actualización:** Febrero 16, 2026  
+**Última actualización:** Febrero 16, 2026
 **Next Review:** Start of Phase 2 (Feb 17, 2026)

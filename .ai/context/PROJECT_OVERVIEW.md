@@ -243,5 +243,5 @@ Para información más detallada, consultar:
 
 ---
 
-**Última actualización:** Febrero 16, 2026  
+**Última actualización:** Febrero 16, 2026
 **Versión:** 1.0.0 (Fase 1 completa)

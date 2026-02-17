@@ -448,11 +448,11 @@ for link in project_links:
 async def scrape_project(project_id):
     if not project_id:
         return None
-    
+
     project = get_project_from_db(project_id)
     if not project:
         return None
-    
+
     return await scrape_details(project)
 
 # Bad ❌ (deep nesting)
@@ -521,16 +521,16 @@ IRIS_BASE_URL = "http://iris.infocasas.com.uy"  # Insecure
 def parse_price(price_text: str) -> float:
     """
     Parse price string to float.
-    
+
     Args:
         price_text: Price string like "USD 120.000" or "U$S 125000"
-    
+
     Returns:
         Float value without currency symbols (e.g., 120000.0)
-    
+
     Raises:
         ValueError: If price_text cannot be parsed
-    
+
     Examples:
         >>> parse_price("USD 120.000")
         120000.0

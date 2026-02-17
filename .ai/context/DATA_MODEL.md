@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS units (
     floor TEXT,
     orientation TEXT,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 ```
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS developer_assets (
     local_path TEXT,
     file_size_bytes INTEGER,
     downloaded_at TIMESTAMP,
-    
+
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 ```
@@ -297,29 +297,29 @@ For each project in catalog_projects.db:
 
 ### Get all projects by developer
 ```sql
-SELECT * FROM projects 
+SELECT * FROM projects
 WHERE developer LIKE '%Desarrolladora XYZ%'
 ORDER BY scraped_at DESC;
 ```
 
 ### Count projects by zone
 ```sql
-SELECT zone, COUNT(*) as count 
-FROM projects 
-GROUP BY zone 
+SELECT zone, COUNT(*) as count
+FROM projects
+GROUP BY zone
 ORDER BY count DESC;
 ```
 
 ### Find projects with Ley VP benefits
 ```sql
-SELECT name, zone, price_from 
-FROM projects 
+SELECT name, zone, price_from
+FROM projects
 WHERE has_ley_vp = 1;
 ```
 
 ### Get all units for a project (Phase 2)
 ```sql
-SELECT u.* 
+SELECT u.*
 FROM units u
 JOIN projects p ON u.project_id = p.id
 WHERE p.name = 'Torre Vista'

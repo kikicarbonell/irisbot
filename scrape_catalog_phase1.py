@@ -1,19 +1,20 @@
 import asyncio
 import os
-import sys
 import sqlite3
+import sys
 from pathlib import Path
+
 from playwright.async_api import async_playwright
 
 from auth import authenticate
 from config import (
-    PLAYWRIGHT_HEADLESS,
-    PLAYWRIGHT_TIMEOUT_MS,
+    IRIS_BASE_URL,
+    IRIS_CATALOG_URL,
+    IRIS_LOGIN_URL,
     PAGINATION_LOAD_TIMEOUT_MS,
     PAGINATION_VISIBILITY_TIMEOUT_MS,
-    IRIS_LOGIN_URL,
-    IRIS_CATALOG_URL,
-    IRIS_BASE_URL,
+    PLAYWRIGHT_HEADLESS,
+    PLAYWRIGHT_TIMEOUT_MS,
 )
 
 # URLs are now loaded from config.py (no CLI args needed)
@@ -45,11 +46,13 @@ CATALOG_SCROLL_CONTAINER = "div.gx-2.gy-3.mb-4.mt-1.mt-lg-0.row"
 OUTPUT_DIR = Path("catalog_artifacts")
 MAX_PAGES = int(os.environ.get("CATALOG_MAX_PAGES", "200"))
 
+
 # --- DB Setup ---
 def setup_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -66,17 +69,19 @@ def setup_db():
             detail_url TEXT UNIQUE,
             scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
-    
+    """
+    )
+
     # Migrate existing DB: drop and recreate to match new schema
     c.execute("PRAGMA table_info(projects)")
     existing = {row[1] for row in c.fetchall()}
-    
+
     # If old table exists, rename it and create new one
     if "realized_by" in existing or "ley_vp" in existing or "description" in existing:
         c.execute("DROP TABLE IF EXISTS projects_old")
         c.execute("ALTER TABLE projects RENAME TO projects_old")
-        c.execute("""
+        c.execute(
+            """
             CREATE TABLE projects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -93,10 +98,12 @@ def setup_db():
                 detail_url TEXT UNIQUE,
                 scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-    
+        """
+        )
+
     conn.commit()
     return conn
+
 
 # --- Extraction ---
 async def safe_text(card, selector):
@@ -146,14 +153,14 @@ def parse_delivery_info(delivery_text):
     - delivery_type: categoría o fecha (INMEDIATA, MES AÑO)
     - delivery_torres: información por torre si existe (ej: "TORRE A INMEDIATA, TORRE B MAYO 2026")
     - project_status: estado del proyecto (A estrenar, En construcción, En pozo)
-    
+
     Returns: (delivery_type, delivery_torres, project_status)
     """
     if not delivery_text:
         return None, None, None
-    
+
     delivery_text = delivery_text.strip()
-    
+
     # Detectar estado del proyecto (palabras clave)
     project_status = None
     status_keywords = ["a estrenar", "en construcción", "en pozo"]
@@ -162,7 +169,7 @@ def parse_delivery_info(delivery_text):
         if keyword in text_lower:
             project_status = keyword.title()
             break
-    
+
     # Si contiene "TORRE", parsear como multi-torre
     if "TORRE" in delivery_text.upper():
         # Formato: "TORRE X ESTADO, TORRE Y ESTADO" o similar
@@ -174,32 +181,32 @@ def parse_delivery_info(delivery_text):
         # Formato simple: solo estado/fecha
         delivery_torres = None
         delivery_type = delivery_text
-    
+
     return delivery_type, delivery_torres, project_status
 
 
 async def extract_delivery_and_status_from_column(col):
     """
     Extract delivery type and project status from delivery column.
-    
+
     Structure:
     <div class="px-1 col">
         <span class="tag-hand-over">entrega inmediata</span>
         <p class="text-secondary">Estado: A estrenar</p>
     </div>
-    
+
     Returns: (delivery_type, delivery_torres, project_status)
     """
     if not col:
         return None, None, None
-    
+
     # Extract delivery type (from tag-hand-over span)
     delivery_elem = await col.query_selector(".tag-hand-over")
     delivery_raw = None
     if delivery_elem:
         delivery_raw = await delivery_elem.text_content()
         delivery_raw = delivery_raw.strip() if delivery_raw else None
-    
+
     # Extract project status (from text-secondary p tag with "Estado:")
     status_paragraph = await col.query_selector("p.text-secondary")
     project_status = None
@@ -208,10 +215,10 @@ async def extract_delivery_and_status_from_column(col):
         if status_text and "Estado:" in status_text:
             # Extract text after "Estado:"
             project_status = status_text.split("Estado:")[-1].strip()
-    
+
     # Parse delivery info to get delivery_torres and delivery_type
     delivery_type, delivery_torres, _ = parse_delivery_info(delivery_raw)
-    
+
     return delivery_type, delivery_torres, project_status
 
 
@@ -236,20 +243,20 @@ async def extract_ley_vp_from_column(col):
     """
     if not col:
         return False
-    
+
     # First check if there's a check icon or visual indicator (i, svg, etc.)
     icon = await col.query_selector("i, svg, .icon, [class*='check']")
     if icon:
         return True
-    
+
     # If no icon, check text content
     text = await col.text_content()
     text = text.strip() if text else ""
-    
+
     # If text is "-" or empty, no Ley VP
     if not text or text == "-":
         return False
-    
+
     # Any other text content means has Ley VP
     return True
 
@@ -273,14 +280,16 @@ async def extract_project_card_data(card):
     if row:
         # Extract delivery type and status from column 4
         delivery_col = await row.query_selector(":scope > div:nth-child(4)")
-        delivery_type, delivery_torres, project_status = await extract_delivery_and_status_from_column(delivery_col)
-        
+        delivery_type, delivery_torres, project_status = (
+            await extract_delivery_and_status_from_column(delivery_col)
+        )
+
         # Extract Ley VP from column element (not just text)
         ley_vp_col = await row.query_selector(":scope > div:nth-child(8)")
         has_ley_vp = await extract_ley_vp_from_column(ley_vp_col)
-        
+
         detail_url_relative = await safe_attr(card, None, "href")
-        
+
         return {
             "name": await safe_text_in_col(row, 2, ".property-table-title"),
             "zone": await safe_text_in_col(row, 3, ".property-hood"),
@@ -300,16 +309,18 @@ async def extract_project_card_data(card):
     if await card.query_selector("td"):
         # For table view, try to extract delivery and status similarly
         delivery_td = await card.query_selector("td:nth-child(3)")
-        delivery_type, delivery_torres, project_status = await extract_delivery_and_status_from_column(delivery_td)
+        delivery_type, delivery_torres, project_status = (
+            await extract_delivery_and_status_from_column(delivery_td)
+        )
         if not delivery_type:
             delivery_type = await safe_text(card, "td:nth-child(3)")
-        
+
         # Extract Ley VP from TD element
         ley_vp_td = await card.query_selector("td:nth-child(7)")
         has_ley_vp = await extract_ley_vp_from_column(ley_vp_td)
-        
+
         detail_url_relative = await safe_attr(card, "a", "href")
-        
+
         return {
             "name": await safe_text(card, "td:nth-child(1)"),
             "zone": await safe_text(card, "td:nth-child(2)"),
@@ -329,7 +340,7 @@ async def extract_project_card_data(card):
     delivery_raw = await safe_text(card, ".property-tags .tag-hand-over")
     delivery_type, delivery_torres, project_status = parse_delivery_info(delivery_raw)
     has_ley_vp = False  # Not available in grid view typically
-    
+
     return {
         "name": await safe_text(card, ".property-card-title"),
         "zone": None,
@@ -386,10 +397,6 @@ async def scroll_last_row_into_view(page, row_selector):
     return False
 
 
-
-
-
-
 async def get_project_hrefs(page, project_selector):
     return await page.evaluate(
         """
@@ -410,7 +417,7 @@ async def wait_for_more_projects(page, project_selector, prev_hrefs, row_selecto
         # Use polling with evaluate instead of wait_for_function for better reliability
         for attempt in range(20):  # Poll up to 20 times (20 * 500ms = 10s total)
             await page.wait_for_timeout(500)
-            
+
             result = await page.evaluate(
                 """
                 ({sel, prev, rowSel, prevRows}) => {
@@ -422,12 +429,17 @@ async def wait_for_more_projects(page, project_selector, prev_hrefs, row_selecto
                     return unique.some((href) => !prev.includes(href)) || rows > prevRows;
                 }
                 """,
-                {"sel": project_selector, "prev": prev_hrefs, "rowSel": row_selector, "prevRows": prev_rows},
+                {
+                    "sel": project_selector,
+                    "prev": prev_hrefs,
+                    "rowSel": row_selector,
+                    "prevRows": prev_rows,
+                },
             )
-            
+
             if result:
                 return True
-        
+
         return False
     except Exception:
         return False
@@ -480,7 +492,9 @@ async def click_load_more(page, project_selector, row_selector):
         await scroll_last_row_into_view(page, row_selector)
         await scroll_catalog(page)
 
-        if await wait_for_more_projects(page, project_selector, prev_hrefs, row_selector, prev_rows):
+        if await wait_for_more_projects(
+            page, project_selector, prev_hrefs, row_selector, prev_rows
+        ):
             return True
 
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
@@ -516,6 +530,7 @@ async def ensure_list_view(page):
         await buttons.nth(1).click()
         await page.wait_for_timeout(500)
 
+
 async def scrape_catalog_phase1():
     conn = setup_db()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -524,7 +539,9 @@ async def scrape_catalog_phase1():
         page = await browser.new_page()
         # Validate catalog URL
         if "example.com" in CATALOG_URL:
-            print("ERROR: CATALOG_URL is a placeholder. Set IRIS_CATALOG_URL env var in .env or environment.")
+            print(
+                "ERROR: CATALOG_URL is a placeholder. Set IRIS_CATALOG_URL env var in .env or environment."
+            )
             await browser.close()
             conn.close()
             return
@@ -532,7 +549,9 @@ async def scrape_catalog_phase1():
         await page.goto(LOGIN_URL, wait_until="domcontentloaded")
         logged_in = await authenticate(page)
         if not logged_in:
-            print("ERROR: Could not authenticate. Verify IRIS_EMAIL/IRIS_PASSWORD in .env or environment variables.")
+            print(
+                "ERROR: Could not authenticate. Verify IRIS_EMAIL/IRIS_PASSWORD in .env or environment variables."
+            )
             await browser.close()
             conn.close()
             return
@@ -546,7 +565,9 @@ async def scrape_catalog_phase1():
 
         # Wait for content to render before saving artifacts
         try:
-            await page.locator("a[href*='/proyecto/']").first.wait_for(timeout=PLAYWRIGHT_TIMEOUT_MS)
+            await page.locator("a[href*='/proyecto/']").first.wait_for(
+                timeout=PLAYWRIGHT_TIMEOUT_MS
+            )
         except Exception:
             pass
 
@@ -555,7 +576,9 @@ async def scrape_catalog_phase1():
         html = await page.content()
         (OUTPUT_DIR / "01_catalog_initial.html").write_text(html, encoding="utf-8")
 
-        project_selector, project_count = await pick_selector(page, PROJECT_CARD_SELECTORS, min_count=1)
+        project_selector, project_count = await pick_selector(
+            page, PROJECT_CARD_SELECTORS, min_count=1
+        )
         if not project_selector:
             print("ERROR: No se encontró selector de tarjeta de proyecto.")
             await browser.close()
@@ -583,7 +606,9 @@ async def scrape_catalog_phase1():
             visible_before = len(cards_before)
             row_count_before = await page.locator(COLUMN_ROW_SELECTOR).count()
             hrefs_before = await get_project_hrefs(page, project_selector)
-            print(f"   Elements found: {visible_before} (rows: {row_count_before}, unique: {len(hrefs_before)})")
+            print(
+                f"   Elements found: {visible_before} (rows: {row_count_before}, unique: {len(hrefs_before)})"
+            )
 
             new_projects_count = 0
             for card in cards_before:
@@ -603,18 +628,29 @@ async def scrape_catalog_phase1():
                     f"{data.get('price_from')} | {data.get('developer')} | {data.get('commission')} | "
                     f"VP: {data.get('has_ley_vp')}"
                 )
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR IGNORE INTO projects (
                         name, zone, delivery_type, delivery_torres, project_status, price_from,
                         developer, commission, has_ley_vp, location, image_url, detail_url
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    data['name'], data.get('zone'), data.get('delivery_type'), data.get('delivery_torres'),
-                    data.get('project_status'), data.get('price_from'), data.get('developer'),
-                    data.get('commission'), data.get('has_ley_vp'), data.get('location'),
-                    data.get('image_url'), data.get('detail_url')
-                ))
+                """,
+                    (
+                        data["name"],
+                        data.get("zone"),
+                        data.get("delivery_type"),
+                        data.get("delivery_torres"),
+                        data.get("project_status"),
+                        data.get("price_from"),
+                        data.get("developer"),
+                        data.get("commission"),
+                        data.get("has_ley_vp"),
+                        data.get("location"),
+                        data.get("image_url"),
+                        data.get("detail_url"),
+                    ),
+                )
                 conn.commit()
 
             print(f"   New projects extracted: {new_projects_count}")
@@ -625,7 +661,9 @@ async def scrape_catalog_phase1():
                 full_page=True,
             )
             html = await page.content()
-            (OUTPUT_DIR / f"{screenshot_num}_catalog_page_{page_iteration-1}.html").write_text(html, encoding="utf-8")
+            (OUTPUT_DIR / f"{screenshot_num}_catalog_page_{page_iteration-1}.html").write_text(
+                html, encoding="utf-8"
+            )
             print(f"   Screenshot saved: {screenshot_num}_catalog_page_{page_iteration-1}.png")
 
             print("\n🔍 Searching for 'Load more' button...")
@@ -633,13 +671,13 @@ async def scrape_catalog_phase1():
             if not loaded_more:
                 print("   ⚠️  No more elements loaded. End of catalog reached.")
                 break
-        
+
         if os.environ.get("WAIT_FOR_APPROVAL") == "1":
             input("Review the screen and press ENTER to finish...")
 
         await browser.close()
     conn.close()
-    
+
     print("\n" + "=" * 100)
     print("✅ CAPTURE COMPLETED")
     print("=" * 100)
@@ -653,6 +691,7 @@ async def scrape_catalog_phase1():
     print("   - etc...")
     print("\n✅ Todos los datos están almacenados en: catalog_projects.db")
     print("=" * 100)
+
 
 if __name__ == "__main__":
     asyncio.run(scrape_catalog_phase1())

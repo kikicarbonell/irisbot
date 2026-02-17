@@ -101,8 +101,8 @@ pre-commit autoupdate
 ## 📊 Hook Details
 
 ### 1. Black (Code Formatter)
-**What:** Automatically formats Python code to PEP 8  
-**Action:** Auto-fixes most issues  
+**What:** Automatically formats Python code to PEP 8
+**Action:** Auto-fixes most issues
 **Config:** `--line-length=100` (matches CODING_STANDARDS.md soft limit)
 
 ```bash
@@ -111,8 +111,8 @@ git diff
 ```
 
 ### 2. isort (Import Organization)
-**What:** Sorts and organizes imports  
-**Action:** Auto-fixes  
+**What:** Sorts and organizes imports
+**Action:** Auto-fixes
 **Config:** Uses black-compatible profile
 
 ```python
@@ -131,7 +131,7 @@ from auth import authenticate
 
 ### 3. Flake8 (PEP 8 Linter)
 **What:** Checks Python style and formatting
-**Action:** Manual fix required  
+**Action:** Manual fix required
 **Config:** Ignores E203, W503 (compatible with black)
 
 Example violations:
@@ -141,8 +141,8 @@ Example violations:
 - Multiple statements on one line
 
 ### 4. Pylint (Code Analysis)
-**What:** Advanced code quality checks  
-**Action:** Manual fix required  
+**What:** Advanced code quality checks
+**Action:** Manual fix required
 **Config:** Max line length 100, extended analysis
 
 Example violations:
@@ -152,8 +152,8 @@ Example violations:
 - Unreachable code
 
 ### 5. pydocstyle (Docstring Validator)
-**What:** Validates docstring formats  
-**Action:** Manual fix required  
+**What:** Validates docstring formats
+**Action:** Manual fix required
 **Config:** Google-style docstrings
 
 Example violations:
@@ -166,18 +166,18 @@ def parse_price(price_text):
 # Good ✅
 def parse_price(price_text: str) -> float:
     """Parse price string to float.
-    
+
     Args:
         price_text: Price string like "USD 120.000"
-    
+
     Returns:
         Float value without currency symbols
     """
 ```
 
 ### 6. mypy (Type Checking)
-**What:** Static type checking  
-**Action:** Manual fix required (warnings only, doesn't fail commit)  
+**What:** Static type checking
+**Action:** Manual fix required (warnings only, doesn't fail commit)
 **Config:** Strict optional, ignore missing imports
 
 Example warnings:
@@ -192,8 +192,8 @@ async def scrape(url: str) -> dict:
 ```
 
 ### 7. Project Constraints (Custom)
-**What:** Irisbot-specific validation  
-**Action:** Manual fix required  
+**What:** Irisbot-specific validation
+**Action:** Manual fix required
 **Checks:**
 - No Selenium imports → Use Playwright
 - No requests imports → Use aiohttp
@@ -202,18 +202,18 @@ async def scrape(url: str) -> dict:
 - No print() statements → Use logging
 
 ### 8. Docstrings Check (Custom)
-**What:** Validates public functions have docstrings  
-**Action:** Manual fix required  
+**What:** Validates public functions have docstrings
+**Action:** Manual fix required
 **Scope:** Only public functions (not starting with `_`)
 
 ### 9. Type Hints Check (Custom)
-**What:** Validates type hints on public functions  
-**Action:** Manual fix required (warnings only)  
+**What:** Validates type hints on public functions
+**Action:** Manual fix required (warnings only)
 **Scope:** Parameters and return types on public functions
 
 ### 10. pytest (Test Suite)
-**What:** Verifies tests can be collected (doesn't run them)  
-**Action:** Manual fix required  
+**What:** Verifies tests can be collected (doesn't run them)
+**Action:** Manual fix required
 **Note:** Run `make test` separately to actually run tests
 
 ---
@@ -401,5 +401,5 @@ Before committing code:
 
 ---
 
-**Last updated:** February 16, 2026  
+**Last updated:** February 16, 2026
 **Status:** Active
