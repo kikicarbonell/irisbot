@@ -308,7 +308,8 @@ def test_setup_db():
         columns = {row[1] for row in cursor.fetchall()}
 
         expected_columns = {
-            "id",
+            "project_id",
+            "detail_url",
             "name",
             "zone",
             "delivery_type",
@@ -320,8 +321,8 @@ def test_setup_db():
             "has_ley_vp",
             "location",
             "image_url",
-            "detail_url",
             "scraped_at",
+            "updated_at",
         }
 
         assert expected_columns.issubset(columns)

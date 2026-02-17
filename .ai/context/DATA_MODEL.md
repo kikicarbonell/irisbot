@@ -12,7 +12,8 @@
 
 ```sql
 CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER PRIMARY KEY,
+    detail_url TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     zone TEXT,
     delivery_type TEXT,
@@ -24,8 +25,8 @@ CREATE TABLE IF NOT EXISTS projects (
     has_ley_vp BOOLEAN DEFAULT 0,
     location TEXT,
     image_url TEXT,
-    detail_url TEXT UNIQUE,
-    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -33,7 +34,8 @@ CREATE TABLE IF NOT EXISTS projects (
 
 | Field | Type | Nullable | Description | Example |
 |-------|------|----------|-------------|---------|
-| `id` | INTEGER | NO | Auto-incremented primary key | `1` |
+| `project_id` | INTEGER | NO (PRIMARY KEY) | Numeric project identifier extracted from URL | `235`, `682` |
+| `detail_url` | TEXT | NO (UNIQUE) | Full URL path to project detail page | `"/proyecto/235"`, `"/proyecto/682?operation=Venta"` |
 | `name` | TEXT | NO | Project name | `"Torre Vista"` |
 | `zone` | TEXT | YES | Geographic zone/neighborhood | `"Pocitos"` |
 | `delivery_type` | TEXT | YES | Delivery timeline | `"2025"`, `"Inmediata"` |
@@ -45,22 +47,45 @@ CREATE TABLE IF NOT EXISTS projects (
 | `has_ley_vp` | BOOLEAN | NO | Has "Ley de Vivienda Promovida" tax benefits | `1`, `0` |
 | `location` | TEXT | YES | Address or location description | `"21 de Setiembre y Rbla."` |
 | `image_url` | TEXT | YES | Main project image URL | `"https://..."` |
-| `detail_url` | TEXT | NO (UNIQUE) | URL to project detail page | `"/proyecto/235"` |
-| `scraped_at` | TIMESTAMP | NO | Timestamp when record was created | `2026-02-14 02:31:58` |
+| `scraped_at` | TIMESTAMP | NO | Timestamp when record was first created | `2026-02-14 02:31:58` |
+| `updated_at` | TIMESTAMP | NO | Timestamp when record was last updated | `2026-02-17 00:15:22` |
 
 ### Indexes
 ```sql
--- Unique constraint on detail_url prevents duplicates
-CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_detail_url ON projects(detail_url);
-
 -- Optional performance indexes (add if needed)
 CREATE INDEX IF NOT EXISTS idx_projects_developer ON projects(developer);
 CREATE INDEX IF NOT EXISTS idx_projects_zone ON projects(zone);
+CREATE INDEX IF NOT EXISTS idx_projects_detail_url ON projects(detail_url);
 ```
 
 ### Constraints
-- `detail_url` must be UNIQUE (prevents duplicate projects)
+- `project_id` is PRIMARY KEY (extracted from URL path: `/proyecto/235` → `235`)
+- `detail_url` is UNIQUE NOT NULL (preserves full URL for reference)
 - `name` is NOT NULL (every project must have a name)
+
+### ID Extraction
+The `project_id` is automatically extracted from the `detail_url` using regex pattern `r"/proyecto/(\d+)"`:
+- `/proyecto/235` → `235`
+- `https://iris.infocasas.com.uy/proyecto/682?operation=Venta` → `682`
+- `/proyecto/1234/detalle` → `1234`
+
+This numeric ID is the true unique identifier used by Iris platform.
+
+### Update Behavior (UPSERT)
+When scraping the catalog, the application uses `INSERT ... ON CONFLICT DO UPDATE`:
+- **First time:** Project is inserted with `scraped_at` = current timestamp
+- **Subsequent runs:** If project already exists (same `project_id`), all fields including `detail_url` are updated and `updated_at` is refreshed
+- **Benefit:** Running the scraper multiple times keeps data fresh without creating duplicates, even if project order or URL parameters change
+
+```sql
+INSERT INTO projects (project_id, detail_url, name, ...) VALUES (?, ?, ?, ...)
+ON CONFLICT(project_id) DO UPDATE SET
+    detail_url = excluded.detail_url,
+    name = excluded.name,
+    zone = excluded.zone,
+    -- ... all fields updated ...
+    updated_at = CURRENT_TIMESTAMP
+```
 
 ---
 
@@ -87,7 +112,7 @@ CREATE TABLE IF NOT EXISTS units (
     orientation TEXT,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE
 );
 ```
 
@@ -95,7 +120,7 @@ CREATE TABLE IF NOT EXISTS units (
 
 | Field | Type | Nullable | Description | Example |
 |-------|------|----------|-------------|---------|
-| `project_id` | INTEGER | NO | Foreign key to `projects.id` | `5` |
+| `project_id` | INTEGER | NO | Foreign key to `projects.project_id` | `235`, `682` |
 | `unit_number` | TEXT | YES | Unit identifier (e.g., "101", "A-302") | `"101"` |
 | `typology` | TEXT | YES | Unit type | `"1 Dormitorio"`, `"Monoambiente"`, `"Garaje"` |
 | `price_cash` | REAL | YES | Cash payment price (USD) | `125000.00` |
@@ -131,7 +156,7 @@ CREATE TABLE IF NOT EXISTS developer_assets (
     file_size_bytes INTEGER,
     downloaded_at TIMESTAMP,
 
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE
 );
 ```
 

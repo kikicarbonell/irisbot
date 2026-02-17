@@ -92,7 +92,7 @@ This document describes all configuration options available in the Irisbot scrap
 
 ### `AUTH_BUTTON_CLICK_DELAY_MS`
 - **Type:** Integer (milliseconds)
-- **Default:** `1000` (1 seconds)
+- **Default:** `2000` (1 seconds)
 - **Description:** Wait time after clicking the login button, before checking for redirect
 - **Use case:** Allows form submission and server-side authentication to process
 - **Example:** `AUTH_BUTTON_CLICK_DELAY_MS=3000`

@@ -4,7 +4,7 @@ env/
 
 # Environment variables and sensitive config
 .env
-config.py
+#config.py
 
 # Data and databases
 data/

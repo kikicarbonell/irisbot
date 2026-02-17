@@ -72,7 +72,8 @@ def setup_db():
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER PRIMARY KEY,
+            detail_url TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
             zone TEXT,
             delivery_type TEXT,
@@ -84,8 +85,8 @@ def setup_db():
             has_ley_vp BOOLEAN DEFAULT 0,
             location TEXT,
             image_url TEXT,
-            detail_url TEXT UNIQUE,
-            scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """
     )
@@ -95,13 +96,19 @@ def setup_db():
     existing = {row[1] for row in c.fetchall()}
 
     # If old table exists, rename it and create new one
-    if "realized_by" in existing or "ley_vp" in existing or "description" in existing:
+    if (
+        "realized_by" in existing
+        or "ley_vp" in existing
+        or "description" in existing
+        or "id" in existing
+    ):
         c.execute("DROP TABLE IF EXISTS projects_old")
         c.execute("ALTER TABLE projects RENAME TO projects_old")
         c.execute(
             """
             CREATE TABLE projects (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER PRIMARY KEY,
+                detail_url TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 zone TEXT,
                 delivery_type TEXT,
@@ -113,8 +120,8 @@ def setup_db():
                 has_ley_vp BOOLEAN DEFAULT 0,
                 location TEXT,
                 image_url TEXT,
-                detail_url TEXT UNIQUE,
-                scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
         )
@@ -312,6 +319,33 @@ def build_absolute_url(relative_url):
     if not relative_url.startswith("/"):
         relative_url = "/" + relative_url
     return IRIS_BASE_URL + relative_url
+
+
+def extract_project_id_from_url(url):
+    """Extract numeric project ID from URL.
+
+    Examples:
+        "/proyecto/235" -> 235
+        "https://iris.infocasas.com.uy/proyecto/682?operation=Venta" -> 682
+        "/proyecto/1234/detalle" -> 1234
+
+    Args:
+        url: Project URL (absolute or relative)
+
+    Returns:
+        int: Project ID or None if not found
+    """
+    if not url:
+        return None
+
+    import re
+
+    # Pattern to match numeric ID after "/proyecto/"
+    match = re.search(r"/proyecto/(\d+)", url)
+    if match:
+        return int(match.group(1))
+
+    return None
 
 
 async def extract_project_card_data(card):
@@ -707,15 +741,41 @@ async def scrape_catalog_phase1():
                 )
                 logger.debug(f"Proyecto: {proyecto_info}")
                 logger.debug(f"Info: {precio_info}")
+
+                # Extract project_id from detail_url
+                project_id = extract_project_id_from_url(data.get("detail_url"))
+                if not project_id:
+                    logger.warning(
+                        f"Could not extract project_id from URL: {data.get('detail_url')}"
+                    )
+                    continue
+
                 conn.execute(
                     """
-                    INSERT OR IGNORE INTO projects (
-                        name, zone, delivery_type, delivery_torres, project_status, price_from,
-                        developer, commission, has_ley_vp, location, image_url, detail_url
+                    INSERT INTO projects (
+                        project_id, detail_url, name, zone, delivery_type, delivery_torres,
+                        project_status, price_from, developer, commission,
+                        has_ley_vp, location, image_url, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(project_id) DO UPDATE SET
+                        detail_url = excluded.detail_url,
+                        name = excluded.name,
+                        zone = excluded.zone,
+                        delivery_type = excluded.delivery_type,
+                        delivery_torres = excluded.delivery_torres,
+                        project_status = excluded.project_status,
+                        price_from = excluded.price_from,
+                        developer = excluded.developer,
+                        commission = excluded.commission,
+                        has_ley_vp = excluded.has_ley_vp,
+                        location = excluded.location,
+                        image_url = excluded.image_url,
+                        updated_at = CURRENT_TIMESTAMP
                 """,
                     (
+                        project_id,
+                        data.get("detail_url"),
                         data["name"],
                         data.get("zone"),
                         data.get("delivery_type"),
@@ -727,7 +787,6 @@ async def scrape_catalog_phase1():
                         data.get("has_ley_vp"),
                         data.get("location"),
                         data.get("image_url"),
-                        data.get("detail_url"),
                     ),
                 )
                 conn.commit()
