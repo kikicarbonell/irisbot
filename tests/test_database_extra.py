@@ -1,5 +1,4 @@
 import importlib
-import asyncio
 from typing import Any
 
 import pytest
@@ -10,9 +9,11 @@ async def test_insert_handles_execute_exception(monkeypatch, tmp_path):
     # Ensure DB_PATH points to tmp so init_db won't fail
     monkeypatch.setenv("BASE_DIR", str(tmp_path))
     import config as cfg
+
     importlib.reload(cfg)
 
     import database as db
+
     importlib.reload(db)
 
     class DummyDB:
@@ -43,9 +44,11 @@ async def test_fetch_unit_none(tmp_path, monkeypatch):
     monkeypatch.setenv("BASE_DIR", str(tmp_path))
     monkeypatch.setenv("DB_FILENAME", "test_none.db")
     import config as cfg
+
     importlib.reload(cfg)
 
     import database as db
+
     importlib.reload(db)
 
     await db.init_db()

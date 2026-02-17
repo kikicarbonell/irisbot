@@ -1,0 +1,190 @@
+# Pre-commit hooks configuration
+# See: https://pre-commit.com
+
+default_stages: [pre-commit]
+fail_fast: false
+
+repos:
+  # ============================================================================
+  # Code formatting and style
+  # ============================================================================
+  
+  # Black - Python code formatter (PEP 8 compliant)
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length=100]  # Match CODING_STANDARDS.md soft limit
+        stages: [pre-commit]
+
+  # isort - Import statement organization
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black]  # Use black-compatible settings
+        stages: [pre-commit]
+
+  # ============================================================================
+  # Linting and code quality
+  # ============================================================================
+  
+  # Flake8 - PEP 8 style guide enforcement
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args:
+          - --max-line-length=100
+          - --extend-ignore=E203,W503  # Compatible with black
+          - --exclude=.venv,__pycache__,tests
+        stages: [pre-commit]
+
+  # Pylint - Advanced Python code analysis (as local hook)
+  - repo: local
+    hooks:
+      - id: pylint
+        name: Pylint
+        entry: python -m pylint
+        language: system
+        types: [python]
+        exclude: ^tests/
+        args:
+          - --max-line-length=100
+          - --disable=C0111  # Docstring not required (pydocstyle handles it)
+          - --enable=C0302  # Too many lines in module
+          - --errors-only  # Only fail on errors, not warnings
+        stages: [pre-commit]
+
+  # pydocstyle - Docstring conventions
+  - repo: https://github.com/PyCQA/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        args:
+          - --convention=google
+          - --add-ignore=D100,D104  # Module/package docstrings optional
+        exclude: ^tests/
+        stages: [pre-commit]
+
+  # ============================================================================
+  # Type checking
+  # ============================================================================
+  
+  # mypy - Static type checking (as local hook)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: python -m mypy
+        language: system
+        types: [python]
+        exclude: ^tests/
+        args:
+          - --ignore-missing-imports
+          - --no-error-summary
+          - --warn-unused-ignores
+          - --strict-optional
+        stages: [pre-commit]
+
+  # ============================================================================
+  # Project-specific validations
+  # ============================================================================
+  
+  # Custom hook: Check project constraints (no Selenium, no requests, etc)
+  - repo: local
+    hooks:
+      - id: check-project-constraints
+        name: Check project constraints
+        entry: python .pre-commit-hooks/check_project_constraints.py
+        language: python
+        types: [python]
+        stages: [pre-commit]
+        pass_filenames: true
+
+  # Custom hook: Check for docstrings in public functions
+  - repo: local
+    hooks:
+      - id: check-docstrings
+        name: Check docstrings on public functions
+        entry: python .pre-commit-hooks/check_docstrings.py
+        language: python
+        types: [python]
+        exclude: ^tests/
+        stages: [pre-commit]
+        pass_filenames: true
+
+  # Custom hook: Check for type hints (warnings only)
+  - repo: local
+    hooks:
+      - id: check-type-hints
+        name: Check type hints on public functions
+        entry: python .pre-commit-hooks/check_type_hints.py
+        language: python
+        types: [python]
+        exclude: ^tests/
+        stages: [pre-commit]
+        pass_filenames: true
+
+  # ============================================================================
+  # Testing
+  # ============================================================================
+  
+  # pytest - Run test collection
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: Run pytest test collection
+        entry: python -m pytest tests/ --collect-only -q
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+        always_run: true
+
+  # ============================================================================
+  # General file checks
+  # ============================================================================
+  
+  # Trailing whitespace
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        stages: [pre-commit]
+
+  # End-of-file fixer
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+
+  # Detect private keys
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: detect-private-key
+        stages: [pre-commit]
+
+  # JSON format checking
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-json
+        stages: [pre-commit]
+
+  # YAML format checking
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe]
+        stages: [pre-commit]
+
+  # Check for merge conflicts
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-merge-conflict
+        stages: [pre-commit]

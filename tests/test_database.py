@@ -1,6 +1,4 @@
 import importlib
-import os
-from pathlib import Path
 
 import pytest
 
@@ -12,9 +10,11 @@ async def test_init_insert_fetch(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_FILENAME", "test_irisbot.db")
 
     import config as cfg
+
     importlib.reload(cfg)
 
     import database as db
+
     importlib.reload(db)
 
     # Init DB

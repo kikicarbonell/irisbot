@@ -1,8 +1,5 @@
 """Unit tests for downloader.py"""
 
-import asyncio
-from pathlib import Path
-
 import pytest
 from aioresponses import aioresponses
 
@@ -63,8 +60,9 @@ async def test_downloader_fetch_with_retries_success(tmp_path):
 
 @pytest.mark.asyncio
 async def test_downloader_write_error_closes_temp(tmp_path, monkeypatch):
-    from downloader import Downloader
     from pathlib import Path
+
+    from downloader import Downloader
 
     url = "https://example.com/file.bin"
     dest = tmp_path / "file.bin"
@@ -101,7 +99,7 @@ async def test_downloader_context_manager():
     async with dl as dl_ctx:
         assert dl_ctx is dl
         # Context manager enters and initializes session
-        session = await dl._get_session()
+        await dl._get_session()
         assert dl._owned_session is not None
 
     # After exit, owned session should be cleared

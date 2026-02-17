@@ -28,6 +28,35 @@ __pycache__/
 dist/
 build/
 
+# AI Agent temporary & intermediate files (MUST BE DELETED after task completion)
+# Analysis files
+*_ANALYSIS*.md
+*_ANALYSIS*.py
+*_DEBUG*.py
+*_SUMMARY*.md
+*_SUMMARY*.json
+do_*.py
+analyze_*.py
+debug_*.py
+inspect_*.py
+explore_*.py
+find_*.py
+
+# Translation/refactoring temporary files
+TRANS*.md
+TRANS*.json
+TRANS*.csv
+REFACTOR*.md
+PLAN*.md
+*_IMPLEMENTATION_GUIDE*.md
+*_NEEDS*.md
+*_CHECKLIST*.csv
+
+# Build/analysis artifacts
+*.tmp
+.analysis/
+.temp/
+
 # OS
 .DS_Store
 .AppleDouble

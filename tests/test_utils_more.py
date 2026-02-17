@@ -1,8 +1,5 @@
-import asyncio
-from aioresponses import aioresponses
 import pytest
-
-from pathlib import Path
+from aioresponses import aioresponses
 
 
 @pytest.mark.asyncio

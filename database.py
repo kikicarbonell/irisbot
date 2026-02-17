@@ -1,9 +1,8 @@
-"""database.py — funciones CRUD asíncronas usando `aiosqlite`.
+"""database.py — Async CRUD functions using `aiosqlite`.
 
-Se mantiene simple y async-first para cumplir las reglas del proyecto.
+Kept simple and async-first to comply with project requirements.
 """
 
-from pathlib import Path
 import json
 import logging
 from typing import Dict, Optional
@@ -28,7 +27,7 @@ CREATE TABLE IF NOT EXISTS units (
 
 
 async def init_db() -> None:
-    """Inicializa la DB y crea tablas necesarias."""
+    """Initialize DB and create necessary tables."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(DB_PATH.as_posix()) as db:
         await db.execute(CREATE_UNITS_TABLE)
@@ -36,12 +35,14 @@ async def init_db() -> None:
 
 
 async def insert_unit(data: Dict) -> None:
-    """Inserta o reemplaza una unidad en la tabla `units`.
+    """Insert or replace a unit in the `units` table.
 
-    `data` debería contener al menos `url` y un `id` o se derivará del URL.
+    `data` should contain at least `url` and an `id` or it will be derived from the URL.
     """
     unit_id = data.get("id") or data.get("url")
-    metadata = json.dumps({k: v for k, v in data.items() if k not in ("id", "url", "title", "price_raw")})
+    metadata = json.dumps(
+        {k: v for k, v in data.items() if k not in ("id", "url", "title", "price_raw")}
+    )
     async with aiosqlite.connect(DB_PATH.as_posix()) as db:
         try:
             await db.execute(
@@ -51,12 +52,22 @@ async def insert_unit(data: Dict) -> None:
             )
             await db.commit()
         except Exception as exc:
-            logger.exception("Error insertando unidad %s: %s", unit_id, exc)
+            logger.exception("Error inserting unit %s: %s", unit_id, exc)
 
 
 async def fetch_unit(unit_id: str) -> Optional[Dict]:
+    """Retrieve a unit by ID from the database.
+
+    Args:
+        unit_id: The unique identifier of the unit to fetch.
+
+    Returns:
+        Dictionary with unit data (id, url, title, price_raw, metadata) or None if not found.
+    """
     async with aiosqlite.connect(DB_PATH.as_posix()) as db:
-        async with db.execute("SELECT id, url, title, price_raw, metadata FROM units WHERE id = ?", (unit_id,)) as cur:
+        async with db.execute(
+            "SELECT id, url, title, price_raw, metadata FROM units WHERE id = ?", (unit_id,)
+        ) as cur:
             row = await cur.fetchone()
             if not row:
                 return None

@@ -1,4 +1,3 @@
-import importlib
 from pathlib import Path
 
 import pytest
@@ -33,7 +32,7 @@ async def test_download_file_write_error(tmp_path, monkeypatch):
     real_write = Path.write_bytes
 
     def fake_write(self, data):
-        if str(self).endswith('.part'):
+        if str(self).endswith(".part"):
             raise OSError("disk error")
         return real_write(self, data)
 

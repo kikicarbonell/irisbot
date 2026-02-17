@@ -6,7 +6,6 @@ import pytest
 @pytest.mark.asyncio
 async def test_db_manager_init_and_insert(tmp_path):
     from db_manager import DBManager
-    from pathlib import Path
 
     db_path = tmp_path / "test.db"
     mgr = DBManager(db_path)

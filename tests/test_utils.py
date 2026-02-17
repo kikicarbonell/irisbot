@@ -1,5 +1,4 @@
 import importlib
-from pathlib import Path
 
 import pytest
 from aioresponses import aioresponses
@@ -9,6 +8,7 @@ from aioresponses import aioresponses
 async def test_download_file_success(tmp_path):
     # Reload config to ensure defaults
     import config as cfg
+
     importlib.reload(cfg)
 
     url = "https://example.com/image.jpg"
