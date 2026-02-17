@@ -82,7 +82,7 @@ assert len(elements) > 0, f"Selector {selector} returned 0 elements"
 ```
 
 ### Selector Centralization
-**ALWAYS define selectors in `iris_selectors.py`:**
+**ALWAYS define selectors in `src/iris_selectors.py`:**
 ```python
 # Good ✅
 from iris_selectors import PROJECT_CARD_LINK

@@ -16,8 +16,8 @@ This document defines coding conventions, patterns, and best practices for the I
 ### Naming Conventions
 ```python
 # Modules: lowercase with underscores
-scrape_catalog_phase1.py
-iris_selectors.py
+src/scrape_catalog_phase1.py
+src/iris_selectors.py
 
 # Classes: PascalCase
 class ProjectScraper:
@@ -340,7 +340,7 @@ IRIS_EMAIL = "hardcoded@example.com"
 
 ### Configuration Hierarchy
 1. Environment variables (.env)
-2. Default constants (config.py)
+2. Default constants (src/config.py)
 3. Command-line arguments (future)
 
 ---
@@ -351,12 +351,12 @@ IRIS_EMAIL = "hardcoded@example.com"
 Each module should have ONE clear purpose:
 
 ```
-auth.py           → Authentication only
-database.py       → Schema definition only
-db_manager.py     → CRUD operations only
-iris_selectors.py → Selector constants only
-utils.py          → Generic helpers only (parsing, formatting)
-downloader.py     → File download operations only (use aiohttp for async downloads)
+src/auth.py           → Authentication only
+src/database.py       → Schema definition only
+src/db_manager.py     → Database operations only
+src/iris_selectors.py → Selector constants only
+src/utils.py          → Generic helpers only (parsing, formatting)
+src/downloader.py     → File download operations only (use aiohttp for async downloads)
 ```
 
 ### File Storage Structure
@@ -378,7 +378,7 @@ Downloaded assets should follow this structure:
 # → Circular dependency
 
 # Good ✅
-# Both import shared config.py or constants.py
+# Both import shared src/config.py or src/constants.py
 ```
 
 ---

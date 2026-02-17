@@ -33,7 +33,7 @@ PLAYWRIGHT_HEADLESS=True
 
 ### 3. Run catalog scraper (Phase 1)
 ```bash
-python scrape_catalog_phase1.py
+python -m src.scrape_catalog_phase1
 ```
 
 This command:
@@ -91,26 +91,26 @@ make test-watch        # Tests in watch mode
 ```bash
 source .venv/bin/activate
 pytest tests/ -v       # All tests
-pytest --cov=. --cov-report=term-missing tests/ -v  # With coverage
-pytest --cov=. --cov-report=html tests/             # HTML report
+pytest --cov=src --cov-report=term-missing tests/ -v  # With coverage
+pytet --cov=src --cov-report=html tests/             # HTML report
 ```
 
 ### Generate Coverage Report
 
 **Coverage with terminal report:**
 ```bash
-pytest --cov=. --cov-report=term-missing tests/
+pytest --cov=src --cov-report=term-missing tests/
 ```
 
 **Cobertura con reporte HTML:**
 ```bash
-pytest --cov=. --cov-report=html tests/
+pytest --cov=src --cov-report=html tests/
 # Abrir htmlcov/index.html en el navegador
 ```
 
 **Cobertura con reporte XML (para CI):**
 ```bash
-pytest --cov=. --cov-report=xml --cov-report=term tests/
+pytest --cov=src --cov-report=xml --cov-report=term tests/
 ```
 
 ### Métricas de Testing

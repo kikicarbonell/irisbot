@@ -413,7 +413,7 @@ pytest --cov=. --cov-report=term-missing tests/ | grep " 0%"
 
 2. Ver líneas específicas sin cobertura:
 ```bash
-pytest --cov=scrape_catalog_phase1 --cov-report=term-missing tests/
+pytest --cov=src --cov-report=term-missing tests/
 ```
 
 3. Añadir tests para esas líneas
