@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sqlite3
+import time
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -11,12 +12,26 @@ from config import (
     IRIS_BASE_URL,
     IRIS_CATALOG_URL,
     IRIS_LOGIN_URL,
+    LOG_LEVEL,
+    NETWORKIDLE_FALLBACK_MS,
     PAGINATION_LOAD_TIMEOUT_MS,
     PAGINATION_VISIBILITY_TIMEOUT_MS,
     PLAYWRIGHT_HEADLESS,
     PLAYWRIGHT_TIMEOUT_MS,
+    POLL_INTERVAL_MS,
+    POLL_MAX_ATTEMPTS,
+    SCROLL_AFTER_DELAY_MS,
+    SCROLL_RETRY_DELAY_MS,
+    SCROLL_STEP_DELAY_MS,
+    VIEW_SWITCH_DELAY_MS,
 )
 
+# Configure logging to show in console
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 logger = logging.getLogger(__name__)
 
 # URLs are now loaded from config.py (no CLI args needed)
@@ -396,7 +411,7 @@ async def scroll_catalog(page, steps=3, distance=1200):
     """Scroll catalog page vertically by specified distance and steps."""
     for _ in range(steps):
         await page.mouse.wheel(0, distance)
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(SCROLL_STEP_DELAY_MS)
 
 
 async def scroll_container_to_bottom(page, container_selector):
@@ -405,12 +420,12 @@ async def scroll_container_to_bottom(page, container_selector):
     if await container.count():
         try:
             await container.evaluate("el => { el.scrollTop = el.scrollHeight; }")
-            await page.wait_for_timeout(600)
+            await page.wait_for_timeout(SCROLL_AFTER_DELAY_MS)
             return True
         except Exception:
             pass
     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-    await page.wait_for_timeout(600)
+    await page.wait_for_timeout(SCROLL_AFTER_DELAY_MS)
     return False
 
 
@@ -420,7 +435,7 @@ async def scroll_last_row_into_view(page, row_selector):
     if await last_row.count():
         try:
             await last_row.scroll_into_view_if_needed(timeout=PAGINATION_VISIBILITY_TIMEOUT_MS)
-            await page.wait_for_timeout(600)
+            await page.wait_for_timeout(SCROLL_AFTER_DELAY_MS)
             return True
         except Exception:
             return False
@@ -446,8 +461,8 @@ async def wait_for_more_projects(page, project_selector, prev_hrefs, row_selecto
     """Wait for new projects to load. Uses polling with evaluate instead of wait_for_function."""
     try:
         # Use polling with evaluate instead of wait_for_function for better reliability
-        for attempt in range(20):  # Poll up to 20 times (20 * 500ms = 10s total)
-            await page.wait_for_timeout(500)
+        for attempt in range(POLL_MAX_ATTEMPTS):
+            await page.wait_for_timeout(POLL_INTERVAL_MS)
 
             result = await page.evaluate(
                 """
@@ -518,7 +533,7 @@ async def click_load_more(page, project_selector, row_selector):
         try:
             await page.wait_for_load_state("networkidle", timeout=PAGINATION_LOAD_TIMEOUT_MS)
         except Exception:
-            await page.wait_for_timeout(1500)
+            await page.wait_for_timeout(NETWORKIDLE_FALLBACK_MS)
 
         await scroll_container_to_bottom(page, CATALOG_SCROLL_CONTAINER)
         await scroll_last_row_into_view(page, row_selector)
@@ -530,7 +545,7 @@ async def click_load_more(page, project_selector, row_selector):
             return True
 
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        await page.wait_for_timeout(1200)
+        await page.wait_for_timeout(SCROLL_RETRY_DELAY_MS)
         await scroll_last_row_into_view(page, row_selector)
         await scroll_catalog(page, steps=2, distance=1600)
         prev_hrefs = await get_project_hrefs(page, project_selector)
@@ -557,15 +572,34 @@ async def ensure_list_view(page):
             if "active" in classes:
                 return
             await btn.click()
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(VIEW_SWITCH_DELAY_MS)
             return
     if count > 1:
         await buttons.nth(1).click()
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(VIEW_SWITCH_DELAY_MS)
 
 
 async def scrape_catalog_phase1():
     """Scrape project catalog with pagination and save artifacts."""
+    logger.info("=" * 80)
+    logger.info("🤖 Irisbot - Catalog Scraper Phase 1")
+    logger.info("=" * 80)
+    logger.info("📋 Configuration loaded:")
+    logger.info(f"   • Headless mode: {PLAYWRIGHT_HEADLESS}")
+    logger.info(f"   • Max iterations: {MAX_PAGES}")
+    max_poll_time = POLL_INTERVAL_MS * POLL_MAX_ATTEMPTS
+    logger.info(
+        f"   • Poll interval: {POLL_INTERVAL_MS}ms × "
+        f"{POLL_MAX_ATTEMPTS} attempts = {max_poll_time}ms max"
+    )
+    logger.info(f"   • Scroll step delay: {SCROLL_STEP_DELAY_MS}ms")
+    logger.info(f"   • Scroll after delay: {SCROLL_AFTER_DELAY_MS}ms")
+    logger.info(f"   • Network fallback: {NETWORKIDLE_FALLBACK_MS}ms")
+    logger.info(f"   • Scroll retry delay: {SCROLL_RETRY_DELAY_MS}ms")
+    logger.info(f"   • View switch delay: {VIEW_SWITCH_DELAY_MS}ms")
+    logger.info("=" * 80)
+    logger.info("")
+
     conn = setup_db()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as p:
@@ -629,17 +663,27 @@ async def scrape_catalog_phase1():
         projects = []
         seen_detail_urls = set()
         page_iteration = 0
+        start_time = time.time()
+
+        logger.info("=" * 80)
+        logger.info("🚀 Starting catalog pagination and data extraction")
+        logger.info(f"Maximum iterations configured: {MAX_PAGES}")
+        logger.info("=" * 80)
 
         while page_iteration < MAX_PAGES:
             page_iteration += 1
-            logger.info(f"Iteration {page_iteration}: Extracting visible projects on the page...")
+            iteration_start = time.time()
+            logger.info("")
+            logger.info("=" * 80)
+            logger.info(f"📄 ITERATION {page_iteration}/{MAX_PAGES}")
+            logger.info("=" * 80)
 
             cards_before = await page.query_selector_all(project_selector)
             visible_before = len(cards_before)
             row_count_before = await page.locator(COLUMN_ROW_SELECTOR).count()
             hrefs_before = await get_project_hrefs(page, project_selector)
-            logger.info(f"Elements found: {visible_before} (rows: {row_count_before})")
-            logger.info(f"Unique hrefs: {len(hrefs_before)}")
+            logger.debug(f"Elements found: {visible_before} (rows: {row_count_before})")
+            logger.debug(f"Unique hrefs: {len(hrefs_before)}")
 
             new_projects_count = 0
             for card in cards_before:
@@ -652,6 +696,7 @@ async def scrape_catalog_phase1():
                     continue
                 projects.append(data)
                 new_projects_count += 1
+                # Log individual projects only at DEBUG level
                 proyecto_info = (
                     f"{data['name']} | {data.get('zone')} | "
                     f"{data.get('delivery_type')} [{data.get('project_status') or 'N/A'}]"
@@ -660,8 +705,8 @@ async def scrape_catalog_phase1():
                     f"{data.get('price_from')} | {data.get('developer')} | "
                     f"{data.get('commission')} | VP: {data.get('has_ley_vp')}"
                 )
-                logger.info(f"Proyecto: {proyecto_info}")
-                logger.info(f"Info: {precio_info}")
+                logger.debug(f"Proyecto: {proyecto_info}")
+                logger.debug(f"Info: {precio_info}")
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO projects (
@@ -687,7 +732,14 @@ async def scrape_catalog_phase1():
                 )
                 conn.commit()
 
-            logger.info(f"New projects extracted: {new_projects_count}")
+            iteration_elapsed = time.time() - iteration_start
+            logger.info("")
+            logger.info("─" * 80)
+            logger.info(f"✅ Iteration {page_iteration} completed")
+            logger.info(f"   • New projects this iteration: {new_projects_count}")
+            logger.info(f"   • Total projects accumulated: {len(projects)}")
+            logger.info(f"   • Iteration duration: {iteration_elapsed:.2f}s")
+            logger.info("─" * 80)
 
             screenshot_num = str(page_iteration + 1).zfill(2)
             await page.screenshot(
@@ -698,9 +750,9 @@ async def scrape_catalog_phase1():
             (OUTPUT_DIR / f"{screenshot_num}_catalog_page_{page_iteration-1}.html").write_text(
                 html, encoding="utf-8"
             )
-            logger.info(f"Screenshot saved: {screenshot_num}_catalog_page_{page_iteration-1}.png")
+            logger.debug(f"Screenshot saved: {screenshot_num}_catalog_page_{page_iteration-1}.png")
 
-            logger.info("Searching for 'Load more' button...")
+            logger.debug("Searching for 'Load more' button...")
             loaded_more = await click_load_more(page, project_selector, COLUMN_ROW_SELECTOR)
             if not loaded_more:
                 logger.info("No more elements loaded. End of catalog reached.")
@@ -712,18 +764,31 @@ async def scrape_catalog_phase1():
         await browser.close()
     conn.close()
 
+    total_elapsed = time.time() - start_time
+    avg_iteration_time = total_elapsed / page_iteration if page_iteration > 0 else 0
+
+    logger.info("")
     logger.info("=" * 100)
-    logger.info("✅ CAPTURE COMPLETED")
+    logger.info("🎉 CATALOG SCRAPING COMPLETED SUCCESSFULLY")
     logger.info("=" * 100)
-    logger.info(f"Total projects captured: {len(projects)}")
-    logger.info(f"Iterations performed: {page_iteration}")
-    logger.info("Screenshots and HTML saved in: catalog_artifacts/")
-    logger.info("   - 01_catalog_initial.png / .html (Initial state - before loading)")
-    logger.info("   - 02_catalog_page_0.png / .html (Iteracion 1)")
-    logger.info("   - 03_catalog_page_1.png / .html (Iteracion 2)")
-    logger.info("   - 04_catalog_page_2.png / .html (Iteracion 3)")
-    logger.info("   - etc...")
-    logger.info("Todos los datos estan almacenados en: catalog_projects.db")
+    logger.info("")
+    logger.info("📊 EXECUTION SUMMARY:")
+    logger.info(f"   • Total projects captured: {len(projects)}")
+    logger.info(f"   • Total unique URLs: {len(seen_detail_urls)}")
+    logger.info(f"   • Total iterations performed: {page_iteration}")
+    logger.info(f"   • Total execution time: {total_elapsed:.2f}s ({total_elapsed/60:.2f} minutes)")
+    logger.info(f"   • Average time per iteration: {avg_iteration_time:.2f}s")
+    if page_iteration > 0:
+        logger.info(f"   • Average projects per iteration: {len(projects)/page_iteration:.1f}")
+    logger.info("")
+    logger.info("📁 OUTPUT FILES:")
+    logger.info(f"   • Database: {DB_PATH}")
+    logger.info(f"   • Screenshots & HTML: {OUTPUT_DIR}/")
+    logger.info("      - 01_catalog_initial.png / .html (Initial state)")
+    for i in range(page_iteration):
+        screenshot_num = str(i + 2).zfill(2)
+        logger.info(f"      - {screenshot_num}_catalog_page_{i}.png / .html (Iteration {i+1})")
+    logger.info("")
     logger.info("=" * 100)
 
 

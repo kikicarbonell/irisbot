@@ -7,7 +7,14 @@ import logging
 
 from playwright.async_api import Page, TimeoutError
 
-from config import IRIS_EMAIL, IRIS_PASSWORD, PLAYWRIGHT_TIMEOUT_MS
+from config import (
+    AUTH_BUTTON_CLICK_DELAY_MS,
+    AUTH_NETWORKIDLE_TIMEOUT_MS,
+    AUTH_REDIRECT_TIMEOUT_MS,
+    IRIS_EMAIL,
+    IRIS_PASSWORD,
+    PLAYWRIGHT_TIMEOUT_MS,
+)
 from iris_selectors import LOGIN_EMAIL_INPUT, LOGIN_PASSWORD_INPUT
 
 logger = logging.getLogger(__name__)
@@ -54,14 +61,43 @@ async def authenticate(page: Page, email: str | None = None, password: str | Non
         submit_button = page.locator("button[type='submit']")
         await submit_button.wait_for(timeout=PLAYWRIGHT_TIMEOUT_MS)
         logger.info("✓ Login button found, pressing...")
+
+        # Take screenshot before click for debugging
+        await page.screenshot(path="data/debug_login_before_click.png")
+        logger.debug("📸 Screenshot taken: debug_login_before_click.png")
+
         await submit_button.click()
+        logger.info("✓ Login button clicked")
+
+        # Give the page time to process the login before checking for redirect
+        await page.wait_for_timeout(AUTH_BUTTON_CLICK_DELAY_MS)
+        logger.info(f"⏳ Waiting {AUTH_BUTTON_CLICK_DELAY_MS}ms for login to process...")
+
+        # Take screenshot after click to see what happened
+        await page.screenshot(path="data/debug_login_after_click.png")
+        logger.debug("📸 Screenshot taken: debug_login_after_click.png")
+
+        # Check for error messages on the page
+        error_selectors = [
+            ".alert-danger",
+            ".error-message",
+            "[role='alert']",
+            ".text-danger",
+            ".invalid-feedback",
+        ]
+        for selector in error_selectors:
+            error_elem = page.locator(selector).first
+            if await error_elem.count() > 0:
+                error_text = await error_elem.text_content()
+                if error_text and error_text.strip():
+                    logger.error(f"❌ Error message on page: {error_text.strip()}")
 
         # Wait for post-login redirect
         # First, try to wait for URL change immediately
         try:
             await page.wait_for_url(
                 lambda u: "/iniciar-sesion" not in u.lower(),
-                timeout=30000,  # 30s for redirect to occur
+                timeout=AUTH_REDIRECT_TIMEOUT_MS,
             )
             logger.info(f"✓ Redirect detected: {page.url}")
         except TimeoutError:
@@ -71,12 +107,22 @@ async def authenticate(page: Page, email: str | None = None, password: str | Non
                 logger.info(f"✓ Redirect already occurred: {current_url}")
             else:
                 logger.warning(f"⚠ Timeout waiting for redirect. Current URL: {current_url}")
+
+                # Take final screenshot for debugging
+                await page.screenshot(path="data/debug_login_timeout.png")
+                logger.error("📸 Screenshot saved: debug_login_timeout.png")
+
+                # Check page title for clues
+                page_title = await page.title()
+                logger.error(f"📄 Page title: {page_title}")
+
                 logger.error("❌ No URL change after login")
+                logger.error("💡 Check screenshots in data/ folder to diagnose the issue")
                 return False
 
-        # Wait for login processing
+        # Wait for login processing with authentication-specific timeout
         try:
-            await page.wait_for_load_state("networkidle", timeout=PLAYWRIGHT_TIMEOUT_MS)
+            await page.wait_for_load_state("networkidle", timeout=AUTH_NETWORKIDLE_TIMEOUT_MS)
             logger.info("✓ Page loaded after login")
         except TimeoutError:
             logger.warning("⚠ Timeout esperando carga de página (pero podría estar autenticado)")

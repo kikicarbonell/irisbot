@@ -8,6 +8,9 @@ help:
 	@echo "  make install-dev          Install dev dependencies"
 	@echo "  make pre-commit-install   Install pre-commit hooks"
 	@echo ""
+	@echo "Running:"
+	@echo "  make run                  Run the catalog scraper"
+	@echo ""
 	@echo "Pre-commit Hooks:"
 	@echo "  make pre-commit-run       Run pre-commit on all files"
 	@echo "  make pre-commit-update    Update pre-commit hooks"
@@ -35,6 +38,7 @@ help:
 install:
 	python -m pip install --upgrade pip
 	pip install -r requirements.txt
+	pip install -e .
 	python -m playwright install chromium firefox
 
 install-dev:
@@ -53,6 +57,10 @@ pre-commit-update:
 	. .venv/bin/activate && pre-commit autoupdate
 	@echo "✅ Pre-commit hooks updated."
 
+run:
+	@echo "🚀 Running catalog scraper..."
+	python src/scrape_catalog_phase1.py
+
 test:
 	pytest tests/ -v --tb=short
 
@@ -64,10 +72,10 @@ test-watch:
 	ptw tests/ -- -v
 
 test-cov:
-	pytest --cov=. --cov-report=term-missing tests/ -v
+	pytest --cov=src --cov-report=term-missing tests/ -v
 
 test-cov-html:
-	pytest --cov=. --cov-report=html --cov-report=term tests/ -v
+	pytest --cov=src --cov-report=html --cov-report=term tests/ -v
 	@echo ""
 	@echo "📊 Coverage report generated: htmlcov/index.html"
 	@echo "🌐 Opening in browser..."

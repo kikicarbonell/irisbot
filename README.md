@@ -19,27 +19,103 @@ cd irisbot
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+pip install -e .  # Install in editable mode
 playwright install
 ```
 
 ### 2. Configure credentials
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (or copy from `.env.example`):
 ```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials:
+```bash
+# Required: Authentication
 IRIS_EMAIL=your_email@example.com
 IRIS_PASSWORD=your_password
+
+# Optional: Platform URLs (defaults shown)
 IRIS_BASE_URL=https://iris.infocasas.com.uy
+
+# Optional: Browser settings
 PLAYWRIGHT_HEADLESS=True
+
+# Optional: Performance tuning (balanced defaults, reliable ~2-3s/iteration)
+POLL_INTERVAL_MS=200          # Polling interval for new content
+SCROLL_STEP_DELAY_MS=200      # Delay between scroll steps
+SCROLL_AFTER_DELAY_MS=300     # Delay after scroll operations
 ```
+
+> **📖 Full configuration guide:** See [`.ai/context/CONFIGURATION.md`](.ai/context/CONFIGURATION.md) for all available options, performance tuning, and troubleshooting.
+>
+> **📄 Template file:** Use [`.env.example`](.env.example) as a starting point with all available options.
 
 ### 3. Run catalog scraper (Phase 1)
 ```bash
-python -m src.scrape_catalog_phase1
+python src/scrape_catalog_phase1.py
 ```
+
+> **Note:** After installing with `pip install -e .`, you can also run from anywhere:
+> ```bash
+> python -c "from src import scrape_catalog_phase1; import asyncio; asyncio.run(scrape_catalog_phase1.scrape_catalog_phase1())"
+> ```
+> Or simply execute the script directly as shown above.
 
 This command:
 - Authenticates in Iris
 - Loads all projects with automatic pagination
 - Saves data in `catalog_projects.db`
+
+#### 📊 Real-time Progress Monitoring
+
+The scraper provides detailed progress logging:
+
+```
+🚀 Starting catalog pagination and data extraction
+Maximum iterations configured: 200
+================================================================================
+
+================================================================================
+📄 ITERATION 1/200
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+✅ Iteration 1 completed
+   • New projects this iteration: 25
+   • Total projects accumulated: 25
+   • Iteration duration: 2.15s
+────────────────────────────────────────────────────────────────────────────────
+```
+
+> **💡 Tip:** The default logging (INFO level) shows only iteration summaries. To see detailed output including each project captured, set `LOG_LEVEL=DEBUG` in your `.env` file.
+
+**Final Summary:**
+```
+🎉 CATALOG SCRAPING COMPLETED SUCCESSFULLY
+📊 EXECUTION SUMMARY:
+   • Total projects captured: 129
+   • Total unique URLs: 129
+   • Total iterations performed: 6
+   • Total execution time: 45.32s (0.76 minutes)
+   • Average time per iteration: 7.55s
+   • Average projects per iteration: 21.5
+```
+
+#### ⚡ Performance Optimizations
+
+The scraper uses balanced wait times optimized for reliable speed:
+
+- **Balanced polling:** 200ms intervals (configurable via `POLL_INTERVAL_MS`)
+- **Reliable wait times:** Scroll delays optimized to 200-300ms (configurable)
+- **Safe timeouts:** Network idle detection with 800ms fallback (configurable via `NETWORKIDLE_FALLBACK_MS`)
+- **Efficient pagination:** Up to 15 polling attempts in 3 seconds (configurable via `POLL_MAX_ATTEMPTS`)
+- **Target:** ~2-3 seconds per iteration with high reliability
+
+**Need different performance?**
+- **Faster:** Reduce to 100-150ms intervals (may cause login/timeout issues)
+- **More reliable:** Increase to 300-400ms for very slow connections
+- **See full guide:** [Performance Tuning](.ai/context/CONFIGURATION.md#-performance-tuning-guide)
 
 ### 4. Verify results
 ```bash
@@ -57,6 +133,7 @@ For detailed project information, consult the documentation in the [`.ai/`](.ai/
 - [**PROJECT_OVERVIEW.md**](.ai/context/PROJECT_OVERVIEW.md) - Overview, objectives and metrics
 - [**ARCHITECTURE.md**](.ai/context/ARCHITECTURE.md) - Technical architecture and data flow
 - [**DATA_MODEL.md**](.ai/context/DATA_MODEL.md) - Database schemas and relationships
+- [**CONFIGURATION.md**](.ai/context/CONFIGURATION.md) - Complete configuration guide with all environment variables
 - [**IMPLEMENTATION_STATUS.md**](.ai/context/IMPLEMENTATION_STATUS.md) - Current status and progress (includes testing metrics)
 
 ### Development Guides
@@ -193,13 +270,13 @@ Los tests se ejecutan automáticamente en cada push y pull request via GitHub Ac
 ## 🏗️ Arquitectura del Proyecto
 
 ### Módulos Principales (Fase 1)
-- **`scrape_catalog_phase1.py`** — Scraper principal para catálogo de proyectos
-- **`auth.py`** — Autenticación en portal Iris
-- **`config.py`** — Configuración y variables de entorno
-- **`database.py`** — Esquema de base de datos
-- **`db_manager.py`** — Operaciones CRUD
-- **`iris_selectors.py`** — Selectores CSS centralizados
-- **`utils.py`** — Funciones auxiliares
+- **`src/scrape_catalog_phase1.py`** — Scraper principal para catálogo de proyectos
+- **`src/auth.py`** — Autenticación en portal Iris
+- **`src/config.py`** — Configuración y variables de entorno
+- **`src/database.py`** — Esquema de base de datos
+- **`src/db_manager.py`** — Operaciones CRUD
+- **`src/iris_selectors.py`** — Selectores CSS centralizados
+- **`src/utils.py`** — Funciones auxiliares
 
 ### Base de Datos (SQLite)
 **Archivo:** `catalog_projects.db`

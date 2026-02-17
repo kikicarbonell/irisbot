@@ -16,6 +16,8 @@ reports/
 coverage.xml
 htmlcov/
 .pytest_cache/
+.coverage/
+catalog_artifacts/
 
 # Download temp files
 *.part
