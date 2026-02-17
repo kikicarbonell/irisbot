@@ -1,26 +1,37 @@
 #!/usr/bin/env python3
-"""
-Custom pre-commit hook: Check for docstrings in public functions.
+"""Custom pre-commit hook: Check for docstrings in public functions.
 
 Validates:
-- Public functions (not starting with _) have docstrings
-- Async functions have docstrings
-- Classes have docstrings
+    - Public functions (not starting with _) have docstrings
+    - Async functions have docstrings
+    - Classes have docstrings
 """
 
 import ast
+import logging
 import sys
-from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class DocstringChecker(ast.NodeVisitor):
     """Check for missing docstrings in public functions/classes."""
 
-    def __init__(self, filename: str):
-        self.filename = filename
-        self.errors = []
+    def __init__(self, filename: str) -> None:
+        """Initialize the docstring checker.
 
-    def visit_FunctionDef(self, node):
+        Args:
+            filename: Path to the file being checked.
+        """
+        self.filename = filename
+        self.errors: list[str] = []
+
+    def visit_FunctionDef(self, node) -> None:
+        """Check function definition for docstring.
+
+        Args:
+            node: AST function node.
+        """
         if not node.name.startswith("_"):  # Public function
             if not ast.get_docstring(node):
                 self.errors.append(
@@ -29,7 +40,12 @@ class DocstringChecker(ast.NodeVisitor):
                 )
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node):
+    def visit_AsyncFunctionDef(self, node) -> None:
+        """Check async function definition for docstring.
+
+        Args:
+            node: AST async function node.
+        """
         if not node.name.startswith("_"):  # Public async function
             if not ast.get_docstring(node):
                 self.errors.append(
@@ -38,7 +54,12 @@ class DocstringChecker(ast.NodeVisitor):
                 )
         self.generic_visit(node)
 
-    def visit_ClassDef(self, node):
+    def visit_ClassDef(self, node) -> None:
+        """Check class definition for docstring.
+
+        Args:
+            node: AST class node.
+        """
         if not node.name.startswith("_"):  # Public class
             if not ast.get_docstring(node):
                 self.errors.append(
@@ -49,7 +70,14 @@ class DocstringChecker(ast.NodeVisitor):
 
 
 def check_docstrings(filename: str) -> bool:
-    """Check file for missing docstrings."""
+    """Check file for missing docstrings.
+
+    Args:
+        filename: Path to the file to check.
+
+    Returns:
+        True if all checks pass, False otherwise.
+    """
     try:
         with open(filename, "r", encoding="utf-8") as f:
             tree = ast.parse(f.read())
@@ -58,11 +86,11 @@ def check_docstrings(filename: str) -> bool:
         checker.visit(tree)
 
         for error in checker.errors:
-            print(error)
+            logger.warning(error)
 
         return len(checker.errors) == 0
     except SyntaxError as e:
-        print(f"⚠️  {filename}: Syntax error - {e}")
+        logger.warning(f"⚠️  {filename}: Syntax error - {e}")
         return False
 
 

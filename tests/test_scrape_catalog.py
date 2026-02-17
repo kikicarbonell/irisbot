@@ -1,6 +1,6 @@
 """Tests for scrape_catalog_phase1.py module"""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -280,7 +280,6 @@ def test_module_constants():
 
 def test_setup_db():
     """Test database setup creates correct schema"""
-    import sqlite3
     from pathlib import Path
 
     from scrape_catalog_phase1 import setup_db

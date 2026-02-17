@@ -8,7 +8,7 @@ import logging
 from playwright.async_api import Page, TimeoutError
 
 from config import IRIS_EMAIL, IRIS_PASSWORD, PLAYWRIGHT_TIMEOUT_MS
-from iris_selectors import LOGIN_EMAIL_INPUT, LOGIN_PASSWORD_INPUT, LOGIN_SUBMIT_BUTTON
+from iris_selectors import LOGIN_EMAIL_INPUT, LOGIN_PASSWORD_INPUT
 
 logger = logging.getLogger(__name__)
 

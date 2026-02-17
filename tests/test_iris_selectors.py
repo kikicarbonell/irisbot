@@ -1,7 +1,5 @@
 """Tests for iris_selectors.py module"""
 
-import pytest
-
 
 def test_login_selectors_exist():
     """Test that login selectors are defined"""
@@ -121,7 +119,7 @@ def test_selectors_immutability():
     original = LOGIN_EMAIL_INPUT
     try:
         LOGIN_EMAIL_INPUT = "modified"  # This would create a new binding, not modify
-    except:
+    except TypeError:
         pass
 
     # Re-import to verify original value is preserved in module

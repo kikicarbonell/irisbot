@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sqlite3
-import sys
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -49,6 +48,7 @@ MAX_PAGES = int(os.environ.get("CATALOG_MAX_PAGES", "200"))
 
 # --- DB Setup ---
 def setup_db():
+    """Set up SQLite database with project table schema."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
@@ -107,6 +107,7 @@ def setup_db():
 
 # --- Extraction ---
 async def safe_text(card, selector):
+    """Extract text content from element within a card using selector."""
     elem = await card.query_selector(selector)
     if not elem:
         return None
@@ -115,6 +116,7 @@ async def safe_text(card, selector):
 
 
 async def safe_attr(card, selector, attr):
+    """Extract attribute value from element within a card."""
     if selector:
         elem = await card.query_selector(selector)
         if elem:
@@ -123,6 +125,7 @@ async def safe_attr(card, selector, attr):
 
 
 async def safe_text_in_col(row, col_index, selector=None):
+    """Extract text from a column by div position within a row."""
     col = await row.query_selector(f":scope > div:nth-child({col_index})")
     if not col:
         return None
@@ -137,6 +140,7 @@ async def safe_text_in_col(row, col_index, selector=None):
 
 
 async def safe_last_text_in_col(row, col_index, selector):
+    """Extract last element's text from a column selector."""
     col = await row.query_selector(f":scope > div:nth-child({col_index})")
     if not col:
         return None
@@ -148,13 +152,15 @@ async def safe_last_text_in_col(row, col_index, selector):
 
 
 def parse_delivery_info(delivery_text):
-    """
-    Parse delivery column to extract:
-    - delivery_type: categoría o fecha (INMEDIATA, MES AÑO)
-    - delivery_torres: información por torre si existe (ej: "TORRE A INMEDIATA, TORRE B MAYO 2026")
-    - project_status: estado del proyecto (A estrenar, En construcción, En pozo)
+    """Parse delivery column to extract delivery type and project status.
 
-    Returns: (delivery_type, delivery_torres, project_status)
+    Extracts:
+        - delivery_type: categoría o fecha (INMEDIATA, MES AÑO)
+        - delivery_torres: información por torre si existe
+        - project_status: estado del proyecto (A estrenar, En construcción, En pozo)
+
+    Returns:
+        tuple: (delivery_type, delivery_torres, project_status)
     """
     if not delivery_text:
         return None, None, None
@@ -186,16 +192,16 @@ def parse_delivery_info(delivery_text):
 
 
 async def extract_delivery_and_status_from_column(col):
-    """
-    Extract delivery type and project status from delivery column.
+    """Extract delivery type and project status from delivery column.
 
-    Structure:
-    <div class="px-1 col">
-        <span class="tag-hand-over">entrega inmediata</span>
-        <p class="text-secondary">Estado: A estrenar</p>
-    </div>
+    Parses column structure:
+        <div class="px-1 col">
+            <span class="tag-hand-over">entrega inmediata</span>
+            <p class="text-secondary">Estado: A estrenar</p>
+        </div>
 
-    Returns: (delivery_type, delivery_torres, project_status)
+    Returns:
+        tuple: (delivery_type, delivery_torres, project_status)
     """
     if not col:
         return None, None, None
@@ -223,10 +229,15 @@ async def extract_delivery_and_status_from_column(col):
 
 
 def parse_ley_vp(ley_vp_text):
-    """
-    Parse Ley VP field to boolean.
-    - False if value is "-" or empty
-    - True if there's any other content (text or visual indicator like check)
+    """Parse Ley VP field to boolean.
+
+    Converts "-" or empty value to False, any other content to True.
+
+    Args:
+        ley_vp_text: Text value to parse.
+
+    Returns:
+        bool: True if has Ley VP, False otherwise.
     """
     if not ley_vp_text:
         return False
@@ -237,9 +248,15 @@ def parse_ley_vp(ley_vp_text):
 
 
 async def extract_ley_vp_from_column(col):
-    """
-    Extract Ley VP value from column, checking both text content and visual elements.
-    Returns: True if has Ley VP (has check icon or other content), False if "-" or empty
+    """Extract Ley VP value from column, checking both text and visual elements.
+
+    Checks for check icon or visual indicator first, then text content.
+
+    Args:
+        col: Column element to check.
+
+    Returns:
+        bool: True if has Ley VP (icon or content), False if "-" or empty.
     """
     if not col:
         return False
@@ -262,8 +279,13 @@ async def extract_ley_vp_from_column(col):
 
 
 def build_absolute_url(relative_url):
-    """
-    Build absolute URL from relative URL using IRIS_BASE_URL.
+    """Build absolute URL from relative URL using IRIS_BASE_URL.
+
+    Args:
+        relative_url: Relative or absolute URL path.
+
+    Returns:
+        str: Absolute URL or None if input was None.
     """
     if not relative_url:
         return None
@@ -275,6 +297,7 @@ def build_absolute_url(relative_url):
 
 
 async def extract_project_card_data(card):
+    """Extract project data from card element (supports list/table/grid views)."""
     # List view (Iris list layout)
     row = await card.query_selector(".p-2.row")
     if row:
@@ -358,6 +381,7 @@ async def extract_project_card_data(card):
 
 
 async def pick_selector(page, selectors, min_count=1):
+    """Find first valid selector from list matching min_count threshold."""
     for selector in selectors:
         count = await page.locator(selector).count()
         if count >= min_count:
@@ -366,12 +390,14 @@ async def pick_selector(page, selectors, min_count=1):
 
 
 async def scroll_catalog(page, steps=3, distance=1200):
+    """Scroll catalog page vertically by specified distance and steps."""
     for _ in range(steps):
         await page.mouse.wheel(0, distance)
         await page.wait_for_timeout(500)
 
 
 async def scroll_container_to_bottom(page, container_selector):
+    """Scroll container element to bottom, fallback to window scroll."""
     container = page.locator(container_selector).first
     if await container.count():
         try:
@@ -386,6 +412,7 @@ async def scroll_container_to_bottom(page, container_selector):
 
 
 async def scroll_last_row_into_view(page, row_selector):
+    """Scroll last matching row element into viewport."""
     last_row = page.locator(row_selector).last
     if await last_row.count():
         try:
@@ -398,6 +425,7 @@ async def scroll_last_row_into_view(page, row_selector):
 
 
 async def get_project_hrefs(page, project_selector):
+    """Extract all unique href attributes from project selector."""
     return await page.evaluate(
         """
         (sel) => {
@@ -446,6 +474,7 @@ async def wait_for_more_projects(page, project_selector, prev_hrefs, row_selecto
 
 
 async def click_load_more(page, project_selector, row_selector):
+    """Click 'Load more' button and wait for new projects to appear."""
     cargar_mas_selector, _ = await pick_selector(page, CARGAR_MAS_SELECTORS, min_count=1)
     if not cargar_mas_selector:
         return False
@@ -508,6 +537,7 @@ async def click_load_more(page, project_selector, row_selector):
 
 
 async def ensure_list_view(page):
+    """Switch catalog to list view if toggle button exists."""
     container = page.locator(".container-toggle-list")
     if not await container.count():
         return
@@ -532,6 +562,7 @@ async def ensure_list_view(page):
 
 
 async def scrape_catalog_phase1():
+    """Scrape project catalog with pagination and save artifacts."""
     conn = setup_db()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as p:
@@ -539,9 +570,8 @@ async def scrape_catalog_phase1():
         page = await browser.new_page()
         # Validate catalog URL
         if "example.com" in CATALOG_URL:
-            print(
-                "ERROR: CATALOG_URL is a placeholder. Set IRIS_CATALOG_URL env var in .env or environment."
-            )
+            print("ERROR: CATALOG_URL is a placeholder.")
+            print("Set IRIS_CATALOG_URL env var in .env or environment.")
             await browser.close()
             conn.close()
             return
@@ -549,9 +579,8 @@ async def scrape_catalog_phase1():
         await page.goto(LOGIN_URL, wait_until="domcontentloaded")
         logged_in = await authenticate(page)
         if not logged_in:
-            print(
-                "ERROR: Could not authenticate. Verify IRIS_EMAIL/IRIS_PASSWORD in .env or environment variables."
-            )
+            print("ERROR: Could not authenticate.")
+            print("Verify IRIS_EMAIL/IRIS_PASSWORD in .env or environment variables.")
             await browser.close()
             conn.close()
             return
@@ -606,9 +635,8 @@ async def scrape_catalog_phase1():
             visible_before = len(cards_before)
             row_count_before = await page.locator(COLUMN_ROW_SELECTOR).count()
             hrefs_before = await get_project_hrefs(page, project_selector)
-            print(
-                f"   Elements found: {visible_before} (rows: {row_count_before}, unique: {len(hrefs_before)})"
-            )
+            print(f"   Elements found: {visible_before} (rows: {row_count_before})")
+            print(f"   Unique hrefs: {len(hrefs_before)}")
 
             new_projects_count = 0
             for card in cards_before:
@@ -621,13 +649,16 @@ async def scrape_catalog_phase1():
                     continue
                 projects.append(data)
                 new_projects_count += 1
-                print(
-                    "   ✓ Proyecto: "
-                    f"{data['name']} | {data.get('zone')} | {data.get('delivery_type')} "
-                    f"[{data.get('project_status') or 'N/A'}] | "
-                    f"{data.get('price_from')} | {data.get('developer')} | {data.get('commission')} | "
-                    f"VP: {data.get('has_ley_vp')}"
+                proyecto_info = (
+                    f"{data['name']} | {data.get('zone')} | "
+                    f"{data.get('delivery_type')} [{data.get('project_status') or 'N/A'}]"
                 )
+                precio_info = (
+                    f"{data.get('price_from')} | {data.get('developer')} | "
+                    f"{data.get('commission')} | VP: {data.get('has_ley_vp')}"
+                )
+                print(f"   ✓ Proyecto: {proyecto_info}")
+                print(f"     Info: {precio_info}")
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO projects (
