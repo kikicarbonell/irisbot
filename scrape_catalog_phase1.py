@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import sqlite3
 from pathlib import Path
@@ -15,6 +16,8 @@ from config import (
     PLAYWRIGHT_HEADLESS,
     PLAYWRIGHT_TIMEOUT_MS,
 )
+
+logger = logging.getLogger(__name__)
 
 # URLs are now loaded from config.py (no CLI args needed)
 LOGIN_URL = IRIS_LOGIN_URL
@@ -570,8 +573,8 @@ async def scrape_catalog_phase1():
         page = await browser.new_page()
         # Validate catalog URL
         if "example.com" in CATALOG_URL:
-            print("ERROR: CATALOG_URL is a placeholder.")
-            print("Set IRIS_CATALOG_URL env var in .env or environment.")
+            logger.error("CATALOG_URL is a placeholder.")
+            logger.error("Set IRIS_CATALOG_URL env var in .env or environment.")
             await browser.close()
             conn.close()
             return
@@ -579,8 +582,8 @@ async def scrape_catalog_phase1():
         await page.goto(LOGIN_URL, wait_until="domcontentloaded")
         logged_in = await authenticate(page)
         if not logged_in:
-            print("ERROR: Could not authenticate.")
-            print("Verify IRIS_EMAIL/IRIS_PASSWORD in .env or environment variables.")
+            logger.error("Could not authenticate.")
+            logger.error("Verify IRIS_EMAIL/IRIS_PASSWORD in .env or environment variables.")
             await browser.close()
             conn.close()
             return
@@ -609,11 +612,11 @@ async def scrape_catalog_phase1():
             page, PROJECT_CARD_SELECTORS, min_count=1
         )
         if not project_selector:
-            print("ERROR: No se encontró selector de tarjeta de proyecto.")
+            logger.error("No se encontró selector de tarjeta de proyecto.")
             await browser.close()
             conn.close()
             return
-        print(f"Project selector used: {project_selector} (count={project_count})")
+        logger.info(f"Project selector used: {project_selector} (count={project_count})")
         if project_count > 0:
             first_elem = page.locator(project_selector).first
             try:
@@ -629,14 +632,14 @@ async def scrape_catalog_phase1():
 
         while page_iteration < MAX_PAGES:
             page_iteration += 1
-            print(f"\n📄 Iteration {page_iteration}: Extracting visible projects on the page...")
+            logger.info(f"Iteration {page_iteration}: Extracting visible projects on the page...")
 
             cards_before = await page.query_selector_all(project_selector)
             visible_before = len(cards_before)
             row_count_before = await page.locator(COLUMN_ROW_SELECTOR).count()
             hrefs_before = await get_project_hrefs(page, project_selector)
-            print(f"   Elements found: {visible_before} (rows: {row_count_before})")
-            print(f"   Unique hrefs: {len(hrefs_before)}")
+            logger.info(f"Elements found: {visible_before} (rows: {row_count_before})")
+            logger.info(f"Unique hrefs: {len(hrefs_before)}")
 
             new_projects_count = 0
             for card in cards_before:
@@ -657,8 +660,8 @@ async def scrape_catalog_phase1():
                     f"{data.get('price_from')} | {data.get('developer')} | "
                     f"{data.get('commission')} | VP: {data.get('has_ley_vp')}"
                 )
-                print(f"   ✓ Proyecto: {proyecto_info}")
-                print(f"     Info: {precio_info}")
+                logger.info(f"Proyecto: {proyecto_info}")
+                logger.info(f"Info: {precio_info}")
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO projects (
@@ -684,7 +687,7 @@ async def scrape_catalog_phase1():
                 )
                 conn.commit()
 
-            print(f"   New projects extracted: {new_projects_count}")
+            logger.info(f"New projects extracted: {new_projects_count}")
 
             screenshot_num = str(page_iteration + 1).zfill(2)
             await page.screenshot(
@@ -695,12 +698,12 @@ async def scrape_catalog_phase1():
             (OUTPUT_DIR / f"{screenshot_num}_catalog_page_{page_iteration-1}.html").write_text(
                 html, encoding="utf-8"
             )
-            print(f"   Screenshot saved: {screenshot_num}_catalog_page_{page_iteration-1}.png")
+            logger.info(f"Screenshot saved: {screenshot_num}_catalog_page_{page_iteration-1}.png")
 
-            print("\n🔍 Searching for 'Load more' button...")
+            logger.info("Searching for 'Load more' button...")
             loaded_more = await click_load_more(page, project_selector, COLUMN_ROW_SELECTOR)
             if not loaded_more:
-                print("   ⚠️  No more elements loaded. End of catalog reached.")
+                logger.info("No more elements loaded. End of catalog reached.")
                 break
 
         if os.environ.get("WAIT_FOR_APPROVAL") == "1":
@@ -709,19 +712,19 @@ async def scrape_catalog_phase1():
         await browser.close()
     conn.close()
 
-    print("\n" + "=" * 100)
-    print("✅ CAPTURE COMPLETED")
-    print("=" * 100)
-    print(f"\n📊 Total projects captured: {len(projects)}")
-    print(f"📄 Iterations performed: {page_iteration}")
-    print("\n📸 Screenshots and HTML saved in: catalog_artifacts/")
-    print("   - 01_catalog_initial.png / .html (Initial state - before loading)")
-    print("   - 02_catalog_page_0.png / .html (Iteración 1)")
-    print("   - 03_catalog_page_1.png / .html (Iteración 2)")
-    print("   - 04_catalog_page_2.png / .html (Iteración 3)")
-    print("   - etc...")
-    print("\n✅ Todos los datos están almacenados en: catalog_projects.db")
-    print("=" * 100)
+    logger.info("=" * 100)
+    logger.info("✅ CAPTURE COMPLETED")
+    logger.info("=" * 100)
+    logger.info(f"Total projects captured: {len(projects)}")
+    logger.info(f"Iterations performed: {page_iteration}")
+    logger.info("Screenshots and HTML saved in: catalog_artifacts/")
+    logger.info("   - 01_catalog_initial.png / .html (Initial state - before loading)")
+    logger.info("   - 02_catalog_page_0.png / .html (Iteracion 1)")
+    logger.info("   - 03_catalog_page_1.png / .html (Iteracion 2)")
+    logger.info("   - 04_catalog_page_2.png / .html (Iteracion 3)")
+    logger.info("   - etc...")
+    logger.info("Todos los datos estan almacenados en: catalog_projects.db")
+    logger.info("=" * 100)
 
 
 if __name__ == "__main__":
