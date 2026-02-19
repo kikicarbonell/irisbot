@@ -10,13 +10,108 @@
 |------|------|----------|
 | **Code language** | 🇬🇧 **English only** | [CODING_STANDARDS.md](./CODING_STANDARDS.md) |
 | **Documentation** | 🇬🇧 **English only** | [CODING_STANDARDS.md](./CODING_STANDARDS.md) |
+| **Code location** | 📁 **`src/` directory only** | This document |
+| **Tests location** | 🧪 **`tests/` directory only** | [TESTING_GUIDE.md](./TESTING_GUIDE.md) |
+| **Documentation files** | 📝 **Update existing, don't create new** | This document |
 | **Code style** | Follow project standards | [CODING_STANDARDS.md](./CODING_STANDARDS.md) |
 | **Testing** | Maintain 90%+ coverage | [TESTING_GUIDE.md](./TESTING_GUIDE.md) |
 | **Temp files** | 🗑️ **DELETE before finishing** | This document |
 
 ---
 
-## 🎯 The Only New Rule: Temporary File Cleanup
+## 📂 Project Directory Structure Rule
+
+**STRICT:** All AI-generated code must follow this directory structure:
+
+### ✅ Application Code
+
+**Location:** `src/` directory ONLY
+
+```
+src/
+├── scrape_catalog_phase1.py    # Main scraper
+├── auth.py                      # Authentication
+├── config.py                    # Configuration
+├── database.py                  # Database async utilities
+├── db_manager.py                # DB manager class
+├── downloader.py                # File download utilities
+├── utils.py                     # Utility functions
+└── iris_selectors.py            # CSS/XPath selectors
+```
+
+**Rule:**
+- All `.py` application code → `src/`
+- All application-level logic → `src/`
+- Configuration, utilities, helpers → `src/`
+
+### ✅ Test Code
+
+**Location:** `tests/` directory ONLY
+
+```
+tests/
+├── conftest.py                  # Pytest configuration & fixtures
+├── test_auth.py                 # Auth tests
+├── test_config.py               # Config tests
+├── test_database.py             # Database tests
+├── test_scrape_catalog.py       # Scraper tests
+└── test_utils.py                # Utils tests
+```
+
+**Rule:**
+- All `.py` test code → `tests/`
+- All pytest configuration → `tests/conftest.py`
+- All test fixtures → `tests/conftest.py`
+- All test cases → `tests/test_*.py`
+
+### ❌ NEVER Create
+
+- Application code in `tests/`
+- Test code outside `tests/`
+- Individual test files at root level
+
+---
+
+## 📝 Documentation Update Rule
+
+**CRITICAL:** Maintain single source of truth for all information.
+
+### ✅ DO Update Existing Documentation
+
+When implementing features or changes, update the relevant existing document:
+
+| Change Type | Document to Update |
+|-------------|-------------------|
+| New code/function | [CODING_STANDARDS.md](./CODING_STANDARDS.md) |
+| Database changes | `/.ai/context/DATA_MODEL.md` |
+| Authentication changes | [SCRAPING_RULES.md](./SCRAPING_RULES.md) |
+| Testing requirements | [TESTING_GUIDE.md](./TESTING_GUIDE.md) |
+| Architecture changes | `/.ai/context/ARCHITECTURE.md` |
+| Configuration additions | [CODING_STANDARDS.md](./CODING_STANDARDS.md) or `README.md` |
+
+**Example:** Adding new config variable:
+```python
+# src/config.py
+NEW_TIMEOUT_MS: Final[int] = int(os.getenv("NEW_TIMEOUT_MS", "5000"))
+```
+→ Update: `README.md` and/or `/.ai/context/ARCHITECTURE.md` with the new config
+
+### ❌ NEVER Create New Documentation Files
+
+**UNLESS explicitly requested in the prompt**, do NOT:
+- Create `NEW_FEATURE.md` for new features → Update existing docs
+- Create `CHANGE_LOG.md` for changes → Update existing docs
+- Create `FEATURE_SUMMARY.md` → Update existing docs
+- Create `CHANGE_DETAILS.md` → Update existing docs
+- Create duplicate documentation of any kind
+
+**Why:** Avoids documentation fragmentation and keeps information synchronized.
+
+**Exception:** Only create new docs if prompt explicitly says "Create documentation for X" or "Create a guide for Y"
+
+---
+
+## 🎯 Temporary File Cleanup Rule
 
 **Rule:** All temporary, intermediate, and analysis files created during prompt resolution must be deleted before marking the task complete.
 

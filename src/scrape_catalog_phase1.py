@@ -348,6 +348,78 @@ def extract_project_id_from_url(url):
     return None
 
 
+def compare_project_data(existing_row, new_data):
+    """Compare existing project with new scraped data to detect changes.
+
+    Args:
+        existing_row: Tuple from database (project_id, detail_url, name, zone, delivery_type,
+                      delivery_torres, project_status, price_from, developer, commission,
+                      has_ley_vp, location, image_url, scraped_at, updated_at)
+        new_data: Dict with keys: name, zone, delivery_type, delivery_torres, project_status,
+                  price_from, developer, commission, has_ley_vp, location, image_url, detail_url
+
+    Returns:
+        tuple: (has_changes: bool, changes_dict: dict with changed field names as keys)
+    """
+    if not existing_row:
+        return True, {}
+
+    # Map database columns to new_data keys
+    fields_to_check = [
+        ("detail_url", 1),
+        ("name", 2),
+        ("zone", 3),
+        ("delivery_type", 4),
+        ("delivery_torres", 5),
+        ("project_status", 6),
+        ("price_from", 7),
+        ("developer", 8),
+        ("commission", 9),
+        ("has_ley_vp", 10),
+        ("location", 11),
+        ("image_url", 12),
+    ]
+
+    changes = {}
+    for field_key, db_index in fields_to_check:
+        old_value = existing_row[db_index]
+        new_value = new_data.get(field_key)
+
+        # For boolean fields, convert to int for comparison if needed
+        if field_key == "has_ley_vp":
+            new_value = int(new_value) if isinstance(new_value, bool) else new_value
+            old_value = int(old_value) if isinstance(old_value, bool) else old_value
+
+        # Compare values (None == None is True)
+        if old_value != new_value:
+            changes[field_key] = {"old": old_value, "new": new_value}
+
+    has_changes = len(changes) > 0
+    return has_changes, changes
+
+
+def format_change_message(project_id, changes_dict):
+    """Format change detection message for logging.
+
+    Args:
+        project_id: Project ID
+        changes_dict: Dictionary with changed fields
+
+    Returns:
+        str: Formatted message with changes
+    """
+    if not changes_dict:
+        return f"Proyecto {project_id}: Sin cambios"
+
+    change_parts = [f"Proyecto {project_id}: {len(changes_dict)} cambio(s) detectado(s)"]
+    for field, diff in sorted(changes_dict.items()):
+        old = diff["old"]
+        new = diff["new"]
+        change_parts.append(f"     • {field}: '{old}' → '{new}'")
+
+    return "\n".join(change_parts)
+
+
 async def extract_project_card_data(card):
     """Extract project data from card element (supports list/table/grid views)."""
     # List view (Iris list layout)
@@ -696,6 +768,11 @@ async def scrape_catalog_phase1():
                 pass
         projects = []
         seen_detail_urls = set()
+        new_projects = []  # Track newly added projects
+        new_project_ids = []  # Track IDs of newly added projects
+        updated_projects = []  # Track updated projects with their changes
+        updated_project_ids = []  # Track IDs of updated projects
+        unchanged_project_ids = []  # Track IDs of unchanged projects
         page_iteration = 0
         start_time = time.time()
 
@@ -707,6 +784,12 @@ async def scrape_catalog_phase1():
         while page_iteration < MAX_PAGES:
             page_iteration += 1
             iteration_start = time.time()
+
+            # Local counters for this iteration (reset each iteration)
+            new_this_iteration = 0
+            updated_this_iteration = 0
+            unchanged_this_iteration = 0
+
             logger.info("")
             logger.info("=" * 80)
             logger.info(f"📄 ITERATION {page_iteration}/{MAX_PAGES}")
@@ -750,52 +833,91 @@ async def scrape_catalog_phase1():
                     )
                     continue
 
-                conn.execute(
-                    """
-                    INSERT INTO projects (
-                        project_id, detail_url, name, zone, delivery_type, delivery_torres,
-                        project_status, price_from, developer, commission,
-                        has_ley_vp, location, image_url, updated_at
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(project_id) DO UPDATE SET
-                        detail_url = excluded.detail_url,
-                        name = excluded.name,
-                        zone = excluded.zone,
-                        delivery_type = excluded.delivery_type,
-                        delivery_torres = excluded.delivery_torres,
-                        project_status = excluded.project_status,
-                        price_from = excluded.price_from,
-                        developer = excluded.developer,
-                        commission = excluded.commission,
-                        has_ley_vp = excluded.has_ley_vp,
-                        location = excluded.location,
-                        image_url = excluded.image_url,
-                        updated_at = CURRENT_TIMESTAMP
-                """,
-                    (
-                        project_id,
-                        data.get("detail_url"),
-                        data["name"],
-                        data.get("zone"),
-                        data.get("delivery_type"),
-                        data.get("delivery_torres"),
-                        data.get("project_status"),
-                        data.get("price_from"),
-                        data.get("developer"),
-                        data.get("commission"),
-                        data.get("has_ley_vp"),
-                        data.get("location"),
-                        data.get("image_url"),
-                    ),
+                # Check if project already exists in database and get full row
+                c = conn.cursor()
+                c.execute(
+                    """SELECT project_id, detail_url, name, zone, delivery_type, delivery_torres,
+                             project_status, price_from, developer, commission,
+                             has_ley_vp, location, image_url, scraped_at, updated_at
+                        FROM projects WHERE project_id = ?""",
+                    (project_id,),
                 )
-                conn.commit()
+                existing_row = c.fetchone()
+                is_new_project = existing_row is None
+
+                # Detect if existing project has changed
+                has_changes = False
+                changes_dict = {}
+                if existing_row:
+                    has_changes, changes_dict = compare_project_data(existing_row, data)
+
+                # Only update if project is new or has changes
+                if is_new_project or has_changes:
+                    conn.execute(
+                        """
+                        INSERT INTO projects (
+                            project_id, detail_url, name, zone, delivery_type, delivery_torres,
+                            project_status, price_from, developer, commission,
+                            has_ley_vp, location, image_url, updated_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(project_id) DO UPDATE SET
+                            detail_url = excluded.detail_url,
+                            name = excluded.name,
+                            zone = excluded.zone,
+                            delivery_type = excluded.delivery_type,
+                            delivery_torres = excluded.delivery_torres,
+                            project_status = excluded.project_status,
+                            price_from = excluded.price_from,
+                            developer = excluded.developer,
+                            commission = excluded.commission,
+                            has_ley_vp = excluded.has_ley_vp,
+                            location = excluded.location,
+                            image_url = excluded.image_url,
+                            updated_at = CURRENT_TIMESTAMP
+                    """,
+                        (
+                            project_id,
+                            data.get("detail_url"),
+                            data["name"],
+                            data.get("zone"),
+                            data.get("delivery_type"),
+                            data.get("delivery_torres"),
+                            data.get("project_status"),
+                            data.get("price_from"),
+                            data.get("developer"),
+                            data.get("commission"),
+                            data.get("has_ley_vp"),
+                            data.get("location"),
+                            data.get("image_url"),
+                        ),
+                    )
+                    conn.commit()
+
+                    # Log change details only at INFO level
+                    if is_new_project:
+                        logger.info(f"✨ NEW PROJECT: ID {project_id} - {data['name']}")
+                        new_projects.append(data)
+                        new_project_ids.append(project_id)
+                        new_this_iteration += 1
+                    else:
+                        logger.info(format_change_message(project_id, changes_dict))
+                        updated_projects.append({"id": project_id, "changes": changes_dict})
+                        updated_project_ids.append(project_id)
+                        updated_this_iteration += 1
+                else:
+                    # Project exists and hasn't changed
+                    unchanged_project_ids.append(project_id)
+                    unchanged_this_iteration += 1
 
             iteration_elapsed = time.time() - iteration_start
+
             logger.info("")
             logger.info("─" * 80)
             logger.info(f"✅ Iteration {page_iteration} completed")
-            logger.info(f"   • New projects this iteration: {new_projects_count}")
+            logger.info(f"   • New projects: {new_this_iteration}")
+            logger.info(f"   • Updated projects: {updated_this_iteration}")
+            logger.info(f"   • Unchanged projects: {unchanged_this_iteration}")
             logger.info(f"   • Total projects accumulated: {len(projects)}")
             logger.info(f"   • Iteration duration: {iteration_elapsed:.2f}s")
             logger.info("─" * 80)
@@ -834,6 +956,23 @@ async def scrape_catalog_phase1():
     logger.info("📊 EXECUTION SUMMARY:")
     logger.info(f"   • Total projects captured: {len(projects)}")
     logger.info(f"   • Total unique URLs: {len(seen_detail_urls)}")
+    logger.info("")
+    logger.info("📈 DATABASE CHANGES:")
+    logger.info(f"   • New projects added: {len(new_project_ids)}")
+    if new_project_ids:
+        new_ids_str = ", ".join(map(str, new_project_ids[:10]))
+        if len(new_project_ids) > 10:
+            new_ids_str += f", ... ({len(new_project_ids) - 10} more)"
+        logger.info(f"     Project IDs: {new_ids_str}")
+    logger.info(f"   • Projects updated (with changes detected): {len(updated_project_ids)}")
+    if updated_project_ids:
+        updated_ids_str = ", ".join(map(str, updated_project_ids[:10]))
+        if len(updated_project_ids) > 10:
+            updated_ids_str += f", ... ({len(updated_project_ids) - 10} more)"
+        logger.info(f"     Project IDs: {updated_ids_str}")
+    logger.info(f"   • Projects without changes (NO update applied): {len(unchanged_project_ids)}")
+    logger.info("")
+    logger.info("⏱️  PERFORMANCE METRICS:")
     logger.info(f"   • Total iterations performed: {page_iteration}")
     logger.info(f"   • Total execution time: {total_elapsed:.2f}s ({total_elapsed/60:.2f} minutes)")
     logger.info(f"   • Average time per iteration: {avg_iteration_time:.2f}s")

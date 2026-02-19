@@ -87,6 +87,84 @@ ON CONFLICT(project_id) DO UPDATE SET
     updated_at = CURRENT_TIMESTAMP
 ```
 
+### 🔄 Change Detection & Smart Updates
+
+**Feature:** The scraper intelligently detects when project data has actually changed and only updates records when necessary.
+
+#### How It Works
+
+1. **Pre-Update Comparison:** Before inserting/updating a project, the system compares:
+   - All 12 data fields: `detail_url`, `name`, `zone`, `delivery_type`, `delivery_torres`, `project_status`, `price_from`, `developer`, `commission`, `has_ley_vp`, `location`, `image_url`
+   - Old values (from database) vs new values (freshly scraped)
+
+2. **Change Detection:** The function `compare_project_data(existing_row, new_data)` returns:
+   - `has_changes: bool` - Whether any field has changed
+   - `changes_dict: dict` - Dictionary mapping field names to `{old, new}` values
+
+3. **Selective Updates:** Database is only updated if:
+   - Project is being added for the first time (new project)
+   - OR at least one field contains different data
+
+4. **No-Change Handling:** Projects identified as unchanged are:
+   - NOT updated in database
+   - NOT marked with new `updated_at` timestamp
+   - Tracked separately for execution reporting
+
+#### Example Change Detection
+
+**Scenario:** Second scrape run, project 235 is re-encountered:
+
+```python
+# Old data in database:
+existing = (235, "/proyecto/235?op=Venta", "Torre Vista", "Pocitos",
+            "2025", None, "En construcción", "USD 120.000", ...)
+
+# New data from scrape:
+new_data = {"detail_url": "/proyecto/235?op=Venta", "name": "Torre Vista UPDATED",
+            "zone": "Pocitos", "delivery_type": "INMEDIATA", ...}
+
+# Comparison result:
+compare_project_data(existing, new_data)
+# Returns: (True, {
+#   "name": {"old": "Torre Vista", "new": "Torre Vista UPDATED"},
+#   "delivery_type": {"old": "2025", "new": "INMEDIATA"}
+# })
+```
+
+**Outcome:** Project 235 is updated because 2 fields changed. Log output:
+```
+INFO: Proyecto 235: 2 cambio(s) detectado(s)
+      • name: 'Torre Vista' → 'Torre Vista UPDATED'
+      • delivery_type: '2025' → 'INMEDIATA'
+```
+
+#### Logging Output
+
+**Per-Iteration Logs (INFO level):**
+- `✨ NEW PROJECT: ID 235 - Torre Vista` (first time added)
+- `Proyecto 235: 2 cambio(s) detectado(s) [with detailed field changes]` (detected changes)
+- (Unchanged projects logged silently for performance)
+
+**Execution Summary (Final report):**
+```
+📈 DATABASE CHANGES:
+   • New projects added: 12
+     Project IDs: 451, 452, 453, ...
+   • Projects updated (with changes detected): 8
+     Project IDs: 235, 682, 890, ...
+   • Projects without changes (NO update applied): 145
+```
+
+#### Benefits
+
+| Benefit | Impact |
+|---------|--------|
+| **Granular Tracking** | Know exactly which fields changed and how |
+| **Database Efficiency** | Avoid unnecessary write operations |
+| **Audit Trail** | Log shows exactly what changed and when |
+| **Statistics** | Clear distinction: new vs updated vs unchanged projects |
+| **Performance** | Skip unnecessary UPDATE statements for unchanged records |
+
 ---
 
 ## 🏗️ Phase 2: Planned Schema Extensions
