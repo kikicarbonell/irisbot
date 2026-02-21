@@ -1,0 +1,33 @@
+{
+  "template_analysis": {
+    "project_id": 0,
+    "metadata": {
+      "title": "Project Title",
+      "description_preview": "First 200 chars...",
+      "labeled_fields": [
+        {
+          "label": "Zona",
+          "value": "Centro",
+          "value_tag": "span"
+        }
+      ]
+    },
+    "units_table": {
+      "found": true,
+      "headers": [
+        "Tipolog\u00eda",
+        "Superficie Interna",
+        "Precio Desde"
+      ],
+      "row_count": 5,
+      "sample_rows": []
+    },
+    "assets": {
+      "found": true,
+      "file_types": {
+        "PDF": 2,
+        "JPG": 5
+      }
+    }
+  }
+}
