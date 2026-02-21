@@ -1,10 +1,9 @@
-"""
-Project Metadata Extractor
+"""Project Metadata Extractor.
 
 Extracts project information:
 - Title, description
 - Status, delivery date, zone
-- Price, developer contact
+- Price, developer contact.
 """
 
 import logging

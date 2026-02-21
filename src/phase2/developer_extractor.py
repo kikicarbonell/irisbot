@@ -1,10 +1,9 @@
-"""
-Developer Information Extractor
+"""Developer Information Extractor.
 
 Extracts developer/company information:
 - Company name, email, phone
 - Website, logo
-- Company description
+- Company description.
 """
 
 import logging
@@ -102,8 +101,8 @@ class DeveloperExtractor:
                         await self.page.wait_for_selector(selector, timeout=3000, state="visible")
                         logger.debug(f"Modal appeared with selector: {selector}")
                         return True
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Modal not found with {selector}: {e}")
 
         except Exception as e:
             logger.debug(f"Error opening developer modal: {e}")
@@ -119,9 +118,12 @@ class DeveloperExtractor:
             )
             if label:
                 # Try to get next element or sibling
-                value_elem = await label.evaluate(
-                    "el => el.nextElementSibling?.textContent || el.parentElement?.querySelector('[class*=\"value\"]')?.textContent"
+                js_selector = (
+                    "el => el.nextElementSibling?.textContent || "
+                    "el.parentElement?.querySelector('[class*=\"value\"]')"
+                    "?.textContent"
                 )
+                value_elem = await label.evaluate(js_selector)
                 if value_elem:
                     return value_elem.strip()
         except Exception as e:
@@ -164,11 +166,11 @@ class DeveloperExtractor:
     async def _extract_developer_name(self) -> Optional[str]:
         """Extract developer name from page (direct extraction)."""
         try:
-            # Look for developer field
-            text = await self.page.text_content()
-            # This is a fallback - real extraction would need more context
+            # Look for developer field - fallback for name extraction
+            # Real extraction would need more context
             return None
-        except:
+        except Exception as e:
+            logger.debug(f"Error extracting developer name: {e}")
             return None
 
     async def _extract_email(self) -> Optional[str]:

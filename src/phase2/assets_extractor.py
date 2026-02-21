@@ -1,15 +1,14 @@
-"""
-Assets Extractor
+"""Assets Extractor.
 
 Finds and extracts downloadable files:
 - PDFs (brochures, floor plans, memoria descriptiva)
 - Images (project photos, logo)
-- Other documents
+- Other documents.
 """
 
 import logging
 from typing import Dict, List, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +68,10 @@ class AssetsExtractor:
         return sorted(assets, key=lambda x: x["type"])
 
     def _parse_asset(self, href: str, link_text: str, full_url: str) -> Optional[Dict]:
-        """
-        Determine if a link is an asset file and classify it.
+        """Determine if a link is an asset file and classify it.
 
         Returns:
-            Dict with asset info or None if not an asset
+            Dict with asset info or None if not an asset.
         """
         href_lower = href.lower()
         text_lower = link_text.lower() if link_text else ""

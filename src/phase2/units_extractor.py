@@ -1,14 +1,12 @@
-"""
-Units Table Extractor
+"""Units Table Extractor.
 
 Extracts apartment/unit information from project pages:
 - Typology (1 BR, 2 BR, Garage, etc)
 - Square meters (internal, external)
 - Prices (from, to, rent)
-- Availability, 360 view, etc
+- Availability, 360 view, etc.
 """
 
-import json
 import logging
 from typing import Dict, List, Optional, Tuple
 
@@ -23,13 +21,12 @@ class UnitsExtractor:
         self.page = page
 
     async def extract_all(self) -> Tuple[bool, List[Dict]]:
-        """
-        Extract all units from page.
+        """Extract all units from page.
 
         Returns:
             (found: bool, units: List[Dict])
             - found: whether a units table was found
-            - units: list of extracted unit objects
+            - units: list of extracted unit objects.
         """
         # Try to find the table
         table = await self._find_table()
@@ -71,8 +68,8 @@ class UnitsExtractor:
                 table = await self.page.query_selector(selector)
                 if table:
                     return table
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Selector {selector} failed: {e}")
 
         return None
 
@@ -131,8 +128,7 @@ class UnitsExtractor:
     def _parse_unit_row(
         self, cell_values: List[str], headers: List[str], row_idx: int
     ) -> Optional[Dict]:
-        """
-        Parse a single row into a unit object.
+        """Parse a single row into a unit object.
 
         Handles various column configurations and data formats.
         """

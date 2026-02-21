@@ -1,11 +1,10 @@
-"""
-Phase 2 Project Details Scraper
+"""Phase 2 Project Details Scraper.
 
 Main scraper for extracting complete project details:
 - Metadata (description, status, etc)
 - Units table
 - Developer information
-- Downloadable assets
+- Downloadable assets.
 """
 
 import asyncio
@@ -14,7 +13,7 @@ import logging
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict
 
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
